@@ -121,6 +121,11 @@ fi
 echo -e "${YELLOW}Activating virtual environment...${NC}"
 source venv/bin/activate
 
+# Upgrade pip to avoid TOML parsing issues
+echo -e "${YELLOW}Upgrading pip...${NC}"
+pip install --upgrade pip setuptools wheel
+echo -e "${GREEN}✓ pip upgraded${NC}"
+
 # Install Python dependencies
 echo -e "${YELLOW}Installing Python dependencies...${NC}"
 pip install -r requirements.txt
