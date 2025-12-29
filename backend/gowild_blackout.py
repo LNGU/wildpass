@@ -17,67 +17,127 @@ class GoWildBlackoutDates:
     - Special event weekends
     """
 
-    # Define blackout date ranges for 2025-2026
+    # Define blackout date ranges for 2025-2027
     # Format: (start_date, end_date, description)
+    # Source: Official Frontier GoWild Pass blackout dates
     BLACKOUT_PERIODS_2025 = [
-        # New Year's 2025
-        ("2025-01-01", "2025-01-02", "New Year's Day"),
+        # January
+        ("2025-01-01", "2025-01-01", "New Year's Day"),
+        ("2025-01-04", "2025-01-05", "Early January"),
+        ("2025-01-16", "2025-01-17", "MLK Weekend"),
+        ("2025-01-20", "2025-01-20", "MLK Day"),
 
-        # Martin Luther King Jr. Weekend
-        ("2025-01-17", "2025-01-20", "MLK Weekend"),
+        # February
+        ("2025-02-13", "2025-02-14", "Valentine's/Presidents Day Weekend"),
+        ("2025-02-17", "2025-02-17", "Presidents Day"),
 
-        # Presidents Day Weekend
-        ("2025-02-14", "2025-02-17", "Presidents Day Weekend"),
+        # March
+        ("2025-03-14", "2025-03-16", "Spring Break Period"),
+        ("2025-03-21", "2025-03-23", "Spring Break Peak"),
+        ("2025-03-28", "2025-03-30", "Late Spring Break"),
 
-        # Spring Break (varies by region, using typical peak)
-        ("2025-03-07", "2025-03-23", "Spring Break Peak"),
+        # April
+        ("2025-04-04", "2025-04-06", "Early April"),
+        ("2025-04-11", "2025-04-13", "Mid-April"),
+        ("2025-04-18", "2025-04-21", "Easter Weekend"),
 
-        # Easter Weekend
-        ("2025-04-17", "2025-04-21", "Easter Weekend"),
+        # May
+        ("2025-05-22", "2025-05-23", "Memorial Day Weekend"),
+        ("2025-05-26", "2025-05-26", "Memorial Day"),
 
-        # Memorial Day Weekend
-        ("2025-05-23", "2025-05-26", "Memorial Day Weekend"),
+        # June
+        ("2025-06-22", "2025-06-22", "Late June"),
+        ("2025-06-26", "2025-06-29", "Summer Start"),
 
-        # Summer Peak Travel
-        ("2025-06-20", "2025-08-17", "Summer Peak Season"),
+        # July
+        ("2025-07-03", "2025-07-07", "Independence Day Weekend"),
 
-        # Labor Day Weekend
-        ("2025-08-29", "2025-09-01", "Labor Day Weekend"),
+        # August
+        ("2025-08-28", "2025-08-29", "Late August"),
 
-        # Thanksgiving Week
-        ("2025-11-22", "2025-11-30", "Thanksgiving Week"),
+        # September
+        ("2025-09-01", "2025-09-01", "Labor Day"),
 
-        # Christmas and New Year's
-        ("2025-12-19", "2026-01-04", "Christmas & New Year's"),
+        # October
+        ("2025-10-09", "2025-10-10", "Columbus Day Weekend"),
+        ("2025-10-12", "2025-10-13", "Mid-October"),
+
+        # November
+        ("2025-11-25", "2025-11-26", "Thanksgiving"),
+        ("2025-11-29", "2025-11-30", "Post-Thanksgiving Weekend"),
+
+        # December
+        ("2025-12-01", "2025-12-01", "Early December"),
+        ("2025-12-20", "2025-12-23", "Pre-Christmas"),
+        ("2025-12-26", "2025-12-31", "Post-Christmas/New Year's"),
     ]
 
     BLACKOUT_PERIODS_2026 = [
-        # Martin Luther King Jr. Weekend
-        ("2026-01-16", "2026-01-19", "MLK Weekend"),
+        # January
+        ("2026-01-01", "2026-01-01", "New Year's Day"),
+        ("2026-01-03", "2026-01-04", "Early January"),
+        ("2026-01-15", "2026-01-16", "MLK Weekend"),
+        ("2026-01-19", "2026-01-19", "MLK Day"),
 
-        # Presidents Day Weekend
-        ("2026-02-13", "2026-02-16", "Presidents Day Weekend"),
+        # February
+        ("2026-02-12", "2026-02-13", "Valentine's/Presidents Day Weekend"),
+        ("2026-02-16", "2026-02-16", "Presidents Day"),
 
-        # Spring Break
-        ("2026-03-06", "2026-03-22", "Spring Break Peak"),
+        # March
+        ("2026-03-13", "2026-03-15", "Spring Break Period"),
+        ("2026-03-20", "2026-03-22", "Spring Break Peak"),
+        ("2026-03-27", "2026-03-29", "Late Spring Break"),
 
-        # Easter Weekend
+        # April
         ("2026-04-03", "2026-04-06", "Easter Weekend"),
+        ("2026-04-10", "2026-04-12", "Mid-April"),
 
-        # Memorial Day Weekend
-        ("2026-05-22", "2026-05-25", "Memorial Day Weekend"),
+        # May
+        ("2026-05-21", "2026-05-22", "Memorial Day Weekend"),
+        ("2026-05-25", "2026-05-25", "Memorial Day"),
 
-        # Summer Peak Travel
-        ("2026-06-19", "2026-08-16", "Summer Peak Season"),
+        # June
+        ("2026-06-25", "2026-06-28", "Summer Start"),
 
-        # Labor Day Weekend
-        ("2026-08-28", "2026-08-31", "Labor Day Weekend"),
+        # July
+        ("2026-07-02", "2026-07-06", "Independence Day Weekend"),
 
-        # Thanksgiving Week
-        ("2026-11-21", "2026-11-29", "Thanksgiving Week"),
+        # September
+        ("2026-09-03", "2026-09-04", "Labor Day Weekend"),
+        ("2026-09-07", "2026-09-07", "Labor Day"),
 
-        # Christmas and New Year's
-        ("2026-12-18", "2027-01-03", "Christmas & New Year's"),
+        # October
+        ("2026-10-08", "2026-10-09", "Columbus Day Weekend"),
+        ("2026-10-11", "2026-10-12", "Mid-October"),
+
+        # November
+        ("2026-11-24", "2026-11-25", "Thanksgiving"),
+        ("2026-11-28", "2026-11-30", "Post-Thanksgiving Weekend"),
+
+        # December
+        ("2026-12-19", "2026-12-24", "Pre-Christmas"),
+        ("2026-12-26", "2026-12-31", "Post-Christmas/New Year's"),
+    ]
+
+    BLACKOUT_PERIODS_2027 = [
+        # January
+        ("2027-01-01", "2027-01-03", "New Year's Holiday"),
+        ("2027-01-14", "2027-01-15", "MLK Weekend"),
+        ("2027-01-18", "2027-01-18", "MLK Day"),
+
+        # February
+        ("2027-02-11", "2027-02-12", "Valentine's/Presidents Day Weekend"),
+        ("2027-02-15", "2027-02-15", "Presidents Day"),
+
+        # March
+        ("2027-03-12", "2027-03-14", "Spring Break Period"),
+        ("2027-03-19", "2027-03-21", "Spring Break Peak"),
+        ("2027-03-26", "2027-03-29", "Late Spring Break/Easter"),
+
+        # April
+        ("2027-04-02", "2027-04-04", "Easter Weekend"),
+
+        # Note: May 2027+ dates to be announced
     ]
 
     @classmethod
@@ -90,7 +150,9 @@ class GoWildBlackoutDates:
         """
         all_periods = []
 
-        for start_str, end_str, description in cls.BLACKOUT_PERIODS_2025 + cls.BLACKOUT_PERIODS_2026:
+        for start_str, end_str, description in (cls.BLACKOUT_PERIODS_2025 +
+                                                 cls.BLACKOUT_PERIODS_2026 +
+                                                 cls.BLACKOUT_PERIODS_2027):
             start_date = datetime.strptime(start_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_str, '%Y-%m-%d')
             all_periods.append((start_date, end_date, description))
@@ -194,7 +256,7 @@ class GoWildBlackoutDates:
             return None
 
         # Search up to 90 days ahead
-        for i in range(90):
+        for _ in range(90):
             current += timedelta(days=1)
             date_str = current.strftime('%Y-%m-%d')
             is_blackout, _ = cls.is_blackout_date(date_str)
