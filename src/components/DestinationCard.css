@@ -1,0 +1,195 @@
+.destination-card {
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.destination-card:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.destination-summary {
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.destination-summary:hover {
+  background-color: #f7fafc;
+}
+
+.destination-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.destination-route {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.destination-origin {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.destination-arrow {
+  color: #667eea;
+  font-size: 1.5rem;
+}
+
+.destination-name {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #2d3748;
+}
+
+.trip-duration-badge {
+  display: inline-block;
+  margin-left: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.destination-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.price-from {
+  font-size: 0.75rem;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.price-amount {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.gowild-price-amount {
+  font-size: 1.5rem;
+  color: #48bb78;
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gowild-taxes {
+  font-size: 0.7rem;
+  color: #48bb78;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+.destination-stats {
+  display: flex;
+  gap: 2rem;
+  padding: 1rem;
+  background-color: #f7fafc;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #2d3748;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.expand-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  color: #667eea;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.arrow-icon {
+  transition: transform 0.3s ease;
+  display: inline-block;
+}
+
+.arrow-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.expand-text {
+  user-select: none;
+}
+
+.destination-flights {
+  border-top: 2px solid #e2e8f0;
+  padding: 1.5rem;
+  background-color: #fafbfc;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 5000px;
+  }
+}
+
+.flights-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .destination-stats {
+    gap: 1rem;
+  }
+
+  .destination-route {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .destination-arrow {
+    display: none;
+  }
+
+  .flights-list {
+    grid-template-columns: 1fr;
+  }
+}
