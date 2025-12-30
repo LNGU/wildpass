@@ -14,13 +14,40 @@ function SearchForm({ onSearch, loading }) {
   const [maxTripDurationUnit, setMaxTripDurationUnit] = useState('days');
   const [nonstopPreferred, setNonstopPreferred] = useState(false);
 
+  const handleSwap = () => {
+    if (anyDestination) {
+      alert('Swap is disabled when "Any Airport" is selected.');
+      return;
+    }
+
+    setOrigins(destinations);
+    setDestinations(origins);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const originAirports = origins.split(',').map(s => s.trim()).filter(s => s);
+    // Normalize inputs (trim + uppercase IATA codes)
+    const normalizeAirports = (value) => value
+      .split(',')
+      .map(s => s.trim().toUpperCase())
+      .filter(s => s);
+
+    const originAirports = normalizeAirports(origins);
     const destinationAirports = anyDestination
       ? ['ANY']
-      : destinations.split(',').map(s => s.trim()).filter(s => s);
+      : normalizeAirports(destinations);
+
+    // Basic date validation to avoid past-date API errors
+    if (departureDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const depart = new Date(departureDate);
+      if (depart < today) {
+        alert('Departure date must be today or in the future.');
+        return;
+      }
+    }
 
     const searchParams = {
       origins: originAirports,
@@ -109,6 +136,17 @@ function SearchForm({ onSearch, loading }) {
 
         <div className="form-group">
           <label htmlFor="destinations">Destination Airports</label>
+          <div className="swap-row">
+            <button
+              type="button"
+              className="swap-button"
+              onClick={handleSwap}
+              disabled={anyDestination}
+              title={anyDestination ? 'Disable "Any Airport" to swap' : 'Swap origins and destinations'}
+            >
+              ⇅ Swap
+            </button>
+          </div>
           <div className="checkbox-group">
             <label className="checkbox-label">
               <input

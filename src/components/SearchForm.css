@@ -17,6 +17,32 @@
   gap: 1.5rem;
 }
 
+.swap-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.25rem;
+}
+
+.swap-button {
+  background: #eef2ff;
+  color: #1f2a6b;
+  border: 1px solid #cdd4ff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.swap-button:hover:not(:disabled) {
+  background: #dfe6ff;
+}
+
+.swap-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
