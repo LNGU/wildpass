@@ -3,6 +3,7 @@ GoWild Pass Blackout Dates Configuration
 
 This module defines blackout dates when GoWild passes cannot be used.
 Based on Frontier Airlines GoWild pass terms and conditions.
+Auto-updated from: https://www.flyfrontier.com/frontiermiles/terms-and-conditions/#GoWild!_Pass
 """
 from datetime import datetime, timedelta
 from typing import List, Tuple, Optional
@@ -15,63 +16,15 @@ class GoWildBlackoutDates:
     - Major holidays (Thanksgiving, Christmas, New Year's)
     - Peak travel periods (Spring Break, Summer peak)
     - Special event weekends
+    
+    Note: 2025 data removed as we are now in 2026.
+    Use blackout_updater.py for automatic updates from Frontier's website.
     """
 
-    # Define blackout date ranges for 2025-2027
+    # Define blackout date ranges for 2026-2027
     # Format: (start_date, end_date, description)
     # Source: Official Frontier GoWild Pass blackout dates
-    BLACKOUT_PERIODS_2025 = [
-        # January
-        ("2025-01-01", "2025-01-01", "New Year's Day"),
-        ("2025-01-04", "2025-01-05", "Early January"),
-        ("2025-01-16", "2025-01-17", "MLK Weekend"),
-        ("2025-01-20", "2025-01-20", "MLK Day"),
-
-        # February
-        ("2025-02-13", "2025-02-14", "Valentine's/Presidents Day Weekend"),
-        ("2025-02-17", "2025-02-17", "Presidents Day"),
-
-        # March
-        ("2025-03-14", "2025-03-16", "Spring Break Period"),
-        ("2025-03-21", "2025-03-23", "Spring Break Peak"),
-        ("2025-03-28", "2025-03-30", "Late Spring Break"),
-
-        # April
-        ("2025-04-04", "2025-04-06", "Early April"),
-        ("2025-04-11", "2025-04-13", "Mid-April"),
-        ("2025-04-18", "2025-04-21", "Easter Weekend"),
-
-        # May
-        ("2025-05-22", "2025-05-23", "Memorial Day Weekend"),
-        ("2025-05-26", "2025-05-26", "Memorial Day"),
-
-        # June
-        ("2025-06-22", "2025-06-22", "Late June"),
-        ("2025-06-26", "2025-06-29", "Summer Start"),
-
-        # July
-        ("2025-07-03", "2025-07-07", "Independence Day Weekend"),
-
-        # August
-        ("2025-08-28", "2025-08-29", "Late August"),
-
-        # September
-        ("2025-09-01", "2025-09-01", "Labor Day"),
-
-        # October
-        ("2025-10-09", "2025-10-10", "Columbus Day Weekend"),
-        ("2025-10-12", "2025-10-13", "Mid-October"),
-
-        # November
-        ("2025-11-25", "2025-11-26", "Thanksgiving"),
-        ("2025-11-29", "2025-11-30", "Post-Thanksgiving Weekend"),
-
-        # December
-        ("2025-12-01", "2025-12-01", "Early December"),
-        ("2025-12-20", "2025-12-23", "Pre-Christmas"),
-        ("2025-12-26", "2025-12-31", "Post-Christmas/New Year's"),
-    ]
-
+    
     BLACKOUT_PERIODS_2026 = [
         # January
         ("2026-01-01", "2026-01-01", "New Year's Day"),
@@ -150,8 +103,7 @@ class GoWildBlackoutDates:
         """
         all_periods = []
 
-        for start_str, end_str, description in (cls.BLACKOUT_PERIODS_2025 +
-                                                 cls.BLACKOUT_PERIODS_2026 +
+        for start_str, end_str, description in (cls.BLACKOUT_PERIODS_2026 +
                                                  cls.BLACKOUT_PERIODS_2027):
             start_date = datetime.strptime(start_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_str, '%Y-%m-%d')

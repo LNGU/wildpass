@@ -2,6 +2,7 @@ const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const isDev = require('electron-is-dev');
+const url = require('url');
 
 let mainWindow;
 let backendProcess;
@@ -18,16 +19,28 @@ function createWindow() {
   });
 
   // Load React app
-  const startUrl = isDev
-    ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, 'build', 'index.html')}`;
-
-  mainWindow.loadURL(startUrl);
-
-  // Open DevTools in development
   if (isDev) {
-    mainWindow.webContents.openDevTools();
+    mainWindow.loadURL('http://localhost:3000');
+  } else {
+    mainWindow.loadURL(
+      url.format({
+        pathname: path.join(__dirname, 'build', 'index.html'),
+        protocol: 'file:',
+        slashes: true,
+      })
+    );
   }
+
+  console.log('Loading URL, isDev:', isDev);
+  console.log('__dirname:', __dirname);
+
+  // Open DevTools to see errors
+  mainWindow.webContents.openDevTools();
+
+  // Log any loading errors
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription);
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;

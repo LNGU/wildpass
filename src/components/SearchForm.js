@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './SearchForm.css';
+import BlackoutDatesModal from './BlackoutDatesModal';
 
 function SearchForm({ onSearch, loading }) {
   const [searchMode, setSearchMode] = useState('package'); // 'package' or 'build-your-own'
@@ -14,6 +15,7 @@ function SearchForm({ onSearch, loading }) {
   const [maxTripDuration, setMaxTripDuration] = useState('');
   const [maxTripDurationUnit, setMaxTripDurationUnit] = useState('days');
   const [nonstopPreferred, setNonstopPreferred] = useState(false);
+  const [showBlackoutModal, setShowBlackoutModal] = useState(false);
 
   const handleSwap = () => {
     if (anyDestination) {
@@ -43,7 +45,11 @@ function SearchForm({ onSearch, loading }) {
     if (departureDate) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const depart = new Date(departureDate);
+      
+      // Parse as local date to avoid timezone issues
+      const [year, month, day] = departureDate.split('-').map(Number);
+      const depart = new Date(year, month - 1, day);
+      
       if (depart < today) {
         alert('Departure date must be today or in the future.');
         return;
@@ -80,7 +86,16 @@ function SearchForm({ onSearch, loading }) {
 
   return (
     <div className="search-form-container">
-      <h2>Search Flights</h2>
+      <div className="search-form-header">
+        <h2>Search Flights</h2>
+        <button 
+          type="button" 
+          className="blackout-dates-link"
+          onClick={() => setShowBlackoutModal(true)}
+        >
+          🚫 View Blackout Dates
+        </button>
+      </div>
       <form onSubmit={handleSubmit} className="search-form">
         <div className="form-group">
           <label htmlFor="searchMode">Search Mode</label>
@@ -375,6 +390,11 @@ function SearchForm({ onSearch, loading }) {
           {loading ? 'Searching...' : 'Search Flights'}
         </button>
       </form>
+
+      <BlackoutDatesModal 
+        isOpen={showBlackoutModal} 
+        onClose={() => setShowBlackoutModal(false)} 
+      />
     </div>
   );
 }

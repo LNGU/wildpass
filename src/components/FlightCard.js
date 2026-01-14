@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './FlightCard.css';
+import FlightDetailsModal from './FlightDetailsModal';
 
 function FlightCard({ flight, buildYourOwnMode = false, buildYourOwnStep = 'outbound', onSelectFlight }) {
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
   // Calculate trip statistics for completed build-your-own trips
   const calculateTripStats = () => {
     if (!flight.is_round_trip || !flight.return_flight) return null;
@@ -182,9 +185,24 @@ function FlightCard({ flight, buildYourOwnMode = false, buildYourOwnStep = 'outb
             </button>
           )
         ) : (
-          <button className="book-button">View Details</button>
+          <button className="book-button" onClick={() => {
+            console.log('View Details clicked, showing modal for flight:', flight);
+            setShowDetailsModal(true);
+          }}>
+            View Details
+          </button>
         )}
       </div>
+
+      {showDetailsModal && (
+        <FlightDetailsModal
+          flight={flight}
+          onClose={() => {
+            console.log('Closing modal');
+            setShowDetailsModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ from flask_cors import CORS
 from amadeus_api import AmadeusFlightSearch
 from trip_planner import find_optimal_trips
 from gowild_blackout import GoWildBlackoutDates
+from blackout_updater import update_if_needed, get_blackout_data
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import json
@@ -16,6 +17,10 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
+
+# Update blackout dates on startup
+print("🚀 Starting WildPass Backend...")
+update_if_needed()
 
 # Initialize scraper (commented out - using Amadeus API)
 # scraper = FrontierScraper()
@@ -449,6 +454,33 @@ def cache_stats():
         'valid_entries': valid_entries,
         'expired_entries': len(cache) - valid_entries
     })
+
+@app.route('/api/blackout-dates', methods=['GET'])
+def get_blackout_dates():
+    """Get current blackout dates"""
+    try:
+        blackout_data = get_blackout_data()
+        return jsonify(blackout_data)
+    except Exception as e:
+        print(f"Error fetching blackout dates: {e}")
+        return jsonify({
+            'error': str(e),
+            'blackout_periods': {'2026': [], '2027': [], '2028': []},
+            'last_updated': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/blackout-dates/refresh', methods=['POST'])
+def refresh_blackout_dates():
+    """Manually refresh blackout dates from Frontier website"""
+    try:
+        from blackout_updater import fetch_blackout_dates
+        data = fetch_blackout_dates()
+        return jsonify({
+            'message': 'Blackout dates refreshed successfully',
+            'data': data
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     # Run on port 5001 (5000 is often used by macOS AirPlay)

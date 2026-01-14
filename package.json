@@ -1,6 +1,8 @@
 {
   "name": "wildpass",
   "version": "0.1.0",
+  "description": "WildPass GoWild Pass Flight Search Desktop App",
+  "author": "WildPass",
   "private": true,
   "main": "electron.js",
   "homepage": "./",
@@ -17,6 +19,7 @@
     "electron-build-linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
+    "electron-is-dev": "^3.0.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-scripts": "5.0.1"
@@ -26,26 +29,36 @@
     "cross-env": "^10.1.0",
     "electron": "^39.2.7",
     "electron-builder": "^26.4.0",
-    "electron-is-dev": "^3.0.1",
     "wait-on": "^9.0.3"
   },
   "build": {
     "appId": "com.wildpass.flightfinder",
     "productName": "WildPass",
+    "extends": null,
     "files": [
       "build/**/*",
       "electron.js",
+      "package.json",
+      "node_modules/**/*",
       "backend/**/*",
       "!backend/venv/**/*",
       "!backend/__pycache__/**/*",
       "!backend/*.pyc"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": ["**/*", "!venv/**/*", "!__pycache__/**/*", "!*.pyc"]
+      }
     ],
     "directories": {
       "buildResources": "public"
     },
     "win": {
       "target": "nsis",
-      "icon": "public/favicon.ico"
+      "icon": "public/favicon.ico",
+      "signAndEditExecutable": false
     },
     "mac": {
       "target": "dmg",
