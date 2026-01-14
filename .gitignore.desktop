@@ -1,0 +1,6 @@
+# Desktop app distribution
+dist/
+*.exe
+*.dmg
+*.AppImage
+*.snap

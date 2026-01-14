@@ -26,3 +26,9 @@ Thumbs.db
 # Build outputs
 build/
 dist/
+
+# Electron
+*.exe
+*.dmg
+*.AppImage
+*.snap
