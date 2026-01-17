@@ -18,6 +18,15 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
 
+# Root route for health checks (Render, etc.)
+@app.route('/')
+def index():
+    return jsonify({
+        'status': 'ok',
+        'service': 'WildPass Flight Search API',
+        'version': '1.0.0'
+    })
+
 # Update blackout dates on startup
 print("🚀 Starting WildPass Backend...")
 update_if_needed()
