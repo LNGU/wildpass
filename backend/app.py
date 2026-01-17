@@ -53,7 +53,13 @@ except ValueError as e:
 
 # Development mode - set to True to return mock data instead of scraping
 # If Amadeus is enabled, DEV_MODE defaults to False (use real data)
+# NOTE: Amadeus Self-Service API does NOT include Frontier Airlines (F9) or other
+# low-cost carriers. When F9 returns no results, we fallback to Alaska Airlines (AS).
 DEV_MODE = os.environ.get('DEV_MODE', 'false' if AMADEUS_ENABLED else 'true').lower() == 'true'
+
+# Fallback airline when Frontier (F9) returns no results
+# Alaska Airlines (AS) is a supported airline in Amadeus
+FALLBACK_AIRLINE = os.environ.get('FALLBACK_AIRLINE', 'AS')  # AS = Alaska Airlines
 
 # Simple in-memory cache
 cache = {}
@@ -77,8 +83,63 @@ def health_check():
         'status': 'ok',
         'message': 'Flight Search API is running',
         'amadeus_enabled': AMADEUS_ENABLED,
-        'dev_mode': DEV_MODE
+        'dev_mode': DEV_MODE,
+        'fallback_airline': FALLBACK_AIRLINE,
+        'amadeus_api_key_set': bool(os.environ.get('AMADEUS_API_KEY')),
+        'amadeus_api_secret_set': bool(os.environ.get('AMADEUS_API_SECRET')),
+        'note': f'Amadeus does not include Frontier (F9). Will fallback to {FALLBACK_AIRLINE} when no F9 flights found.'
     })
+
+@app.route('/api/debug/amadeus-test', methods=['GET'])
+def amadeus_test():
+    """
+    Test Amadeus API connection directly
+    This helps diagnose if credentials are working
+    """
+    if not AMADEUS_ENABLED or not amadeus_client:
+        return jsonify({
+            'status': 'error',
+            'message': 'Amadeus not configured',
+            'amadeus_enabled': AMADEUS_ENABLED
+        }), 503
+    
+    try:
+        # Try a simple flight search for tomorrow to test API
+        from datetime import datetime, timedelta
+        test_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        response = amadeus_client.amadeus.shopping.flight_offers_search.get(
+            originLocationCode='DEN',
+            destinationLocationCode='LAX',
+            departureDate=test_date,
+            adults=1,
+            max=3
+        )
+        
+        # Extract airlines found
+        airlines = set()
+        for offer in response.data:
+            for itin in offer.get('itineraries', []):
+                for seg in itin.get('segments', []):
+                    airlines.add(seg.get('carrierCode'))
+        
+        return jsonify({
+            'status': 'ok',
+            'message': 'Amadeus API is working',
+            'test_date': test_date,
+            'route': 'DEN -> LAX',
+            'offers_found': len(response.data),
+            'airlines_found': list(airlines),
+            'sample_price': response.data[0]['price']['total'] if response.data else None
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 def generate_mock_flights(origins, destinations, departure_date, return_date=None):
     """Generate mock flight data for development/testing"""
@@ -165,6 +226,8 @@ def search_flights():
             })
 
         # Use mock data in dev mode, Amadeus API if enabled, otherwise scrape
+        fallback_used = False  # Track if we fell back to a different airline
+        
         if DEV_MODE:
             print(f"[DEV MODE] Generating mock flights for {origins} -> {destinations}")
             flights = generate_mock_flights(origins, destinations, departure_date, return_date)
@@ -187,6 +250,21 @@ def search_flights():
                 return_date=search_return_date,
                 adults=1
             )
+            
+            # FALLBACK: If Amadeus returns 0 flights for Frontier (F9),
+            # search for fallback airline (Alaska Airlines by default)
+            if len(flights) == 0 and FALLBACK_AIRLINE:
+                print(f"[FALLBACK] Frontier (F9) returned 0 flights - trying {FALLBACK_AIRLINE}")
+                print(f"   Note: Amadeus Self-Service API doesn't include low-cost carriers like Frontier")
+                flights = amadeus_client.search_flights_with_airline(
+                    origins=origins,
+                    destinations=destinations,
+                    departure_date=departure_date,
+                    return_date=search_return_date,
+                    adults=1,
+                    airline_code=FALLBACK_AIRLINE
+                )
+                fallback_used = True
         else:
             # Scraper not available - return error
             print(f"ERROR: Neither Amadeus API nor scraper is available")
@@ -202,13 +280,20 @@ def search_flights():
             'timestamp': datetime.now().isoformat()
         }
 
-        return jsonify({
+        response_data = {
             'flights': flights,
             'cached': False,
             'searchParams': data,
             'count': len(flights),
             'devMode': DEV_MODE
-        })
+        }
+        
+        # Add fallback notice if we used a different airline
+        if AMADEUS_ENABLED and fallback_used:
+            response_data['fallback_airline_used'] = FALLBACK_AIRLINE
+            response_data['fallback_notice'] = f'Frontier Airlines (F9) is not available in Amadeus. Showing {amadeus_client._get_airline_name(FALLBACK_AIRLINE)} flights instead.'
+
+        return jsonify(response_data)
 
     except Exception as e:
         print(f"Error in search_flights: {str(e)}")
@@ -321,6 +406,39 @@ def search_flights_stream():
                 # Stream the collected results
                 for result in streamed_results:
                     yield f"data: {json.dumps(result)}\n\n"
+                
+                # FALLBACK: If Amadeus returns 0 flights for Frontier, try fallback airline
+                if len(all_flights) == 0 and FALLBACK_AIRLINE:
+                    print(f"[FALLBACK STREAM] Frontier (F9) returned 0 flights - trying {FALLBACK_AIRLINE}")
+                    
+                    # Send notice about fallback
+                    fallback_notice = {
+                        'fallback_notice': f'Frontier Airlines (F9) is not available in Amadeus. Showing {amadeus_client._get_airline_name(FALLBACK_AIRLINE)} flights instead.',
+                        'fallback_airline': FALLBACK_AIRLINE
+                    }
+                    yield f"data: {json.dumps(fallback_notice)}\n\n"
+                    
+                    # Search with fallback airline
+                    fallback_results = []
+                    def fallback_callback(route, flights):
+                        fallback_results.append({
+                            'route': route,
+                            'flights': flights,
+                            'count': len(flights)
+                        })
+                    
+                    all_flights = amadeus_client.search_flights_with_airline(
+                        origins=origins,
+                        destinations=destinations,
+                        departure_date=departure_date,
+                        return_date=search_return_date,
+                        adults=1,
+                        airline_code=FALLBACK_AIRLINE,
+                        callback=fallback_callback
+                    )
+                    
+                    for result in fallback_results:
+                        yield f"data: {json.dumps(result)}\n\n"
 
             # Send completion event
             completion_data = {
@@ -468,6 +586,87 @@ def cache_stats():
         'valid_entries': valid_entries,
         'expired_entries': len(cache) - valid_entries
     })
+
+@app.route('/api/debug/search', methods=['POST'])
+def debug_search():
+    """
+    Debug endpoint to diagnose search issues
+    Returns detailed information about the search process
+    """
+    try:
+        data = request.get_json()
+        debug_info = {
+            'request_received': data,
+            'amadeus_enabled': AMADEUS_ENABLED,
+            'dev_mode': DEV_MODE,
+            'amadeus_client_status': 'initialized' if amadeus_client else 'not initialized',
+            'steps': [],
+            'flights': [],
+            'errors': []
+        }
+        
+        origins = data.get('origins', [])
+        destinations = data.get('destinations', [])
+        departure_date = data.get('departureDate')
+        return_date = data.get('returnDate')
+        
+        debug_info['steps'].append(f"Searching {origins} -> {destinations} on {departure_date}")
+        
+        if AMADEUS_ENABLED and amadeus_client:
+            try:
+                # Try searching without Frontier filter to see all available flights
+                from amadeus import ResponseError
+                for origin in origins[:1]:  # Just test first origin
+                    for destination in destinations[:1]:  # Just test first destination
+                        try:
+                            # Search without airline filter first
+                            response = amadeus_client.amadeus.shopping.flight_offers_search.get(
+                                originLocationCode=origin,
+                                destinationLocationCode=destination,
+                                departureDate=departure_date,
+                                adults=1,
+                                max=5  # Just get a few for debug
+                            )
+                            debug_info['steps'].append(f"Raw Amadeus response: {len(response.data)} offers found (no filter)")
+                            
+                            # Show what airlines are available
+                            airlines_found = set()
+                            for offer in response.data:
+                                for itin in offer.get('itineraries', []):
+                                    for seg in itin.get('segments', []):
+                                        airlines_found.add(seg.get('carrierCode'))
+                            debug_info['airlines_available'] = list(airlines_found)
+                            
+                            # Now try with Frontier filter
+                            try:
+                                response_f9 = amadeus_client.amadeus.shopping.flight_offers_search.get(
+                                    originLocationCode=origin,
+                                    destinationLocationCode=destination,
+                                    departureDate=departure_date,
+                                    adults=1,
+                                    max=5,
+                                    includedAirlineCodes='F9'
+                                )
+                                debug_info['steps'].append(f"Frontier-filtered results: {len(response_f9.data)} offers")
+                                debug_info['frontier_flights_raw'] = len(response_f9.data)
+                            except ResponseError as e:
+                                debug_info['errors'].append(f"Frontier filter error: {str(e)}")
+                            
+                        except ResponseError as e:
+                            debug_info['errors'].append(f"Amadeus API error for {origin}->{destination}: {str(e)}")
+            except Exception as e:
+                debug_info['errors'].append(f"Amadeus search exception: {str(e)}")
+        else:
+            debug_info['steps'].append("Amadeus not enabled, would use mock data in dev mode")
+            
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 @app.route('/api/blackout-dates', methods=['GET'])
 def get_blackout_dates():

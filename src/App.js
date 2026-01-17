@@ -15,6 +15,7 @@ function App() {
   const [tripPlannerInfo, setTripPlannerInfo] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [backendStatus, setBackendStatus] = useState({ status: 'checking', message: 'Checking backend...' });
+  const [fallbackNotice, setFallbackNotice] = useState(null);
 
   // Check backend health on mount
   useEffect(() => {
@@ -97,6 +98,7 @@ function App() {
 
     // Always clear flights when starting a new search
     setFlights([]);
+    setFallbackNotice(null);  // Clear previous fallback notice
 
     // Reset build-your-own state when starting fresh outbound search
     if (params.searchMode === 'build-your-own') {
@@ -163,6 +165,11 @@ function App() {
         setStatusMessage('');
         console.error('Search error:', err);
         setLoading(false);
+      },
+      // onFallbackNotice callback - when Frontier not available, showing different airline
+      (notice, airline) => {
+        console.log('Fallback notice:', notice);
+        setFallbackNotice({ message: notice, airline });
       }
     );
   };
@@ -186,6 +193,11 @@ function App() {
           {error && (
             <div className="error-message">
               <p>⚠️ {error}</p>
+            </div>
+          )}
+          {fallbackNotice && (
+            <div className="fallback-notice">
+              <p>ℹ️ {fallbackNotice.message}</p>
             </div>
           )}
           {loading && (

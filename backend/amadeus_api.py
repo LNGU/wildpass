@@ -34,6 +34,15 @@ class AmadeusFlightSearch:
 
         Returns:
             List of flight dictionaries matching our app's format
+        
+        NOTE: Amadeus Self-Service API does NOT include low-cost carriers like:
+        - Frontier Airlines (F9)
+        - American Airlines (AA)
+        - Delta (DL)
+        - British Airways (BA)
+        
+        For Frontier flights, consider using DEV_MODE=true for mock data,
+        or integrating a different API that supports LCCs.
         """
         all_flights = []
 
@@ -50,13 +59,15 @@ class AmadeusFlightSearch:
 
                 try:
                     # Build search parameters
+                    # NOTE: We try Frontier (F9) first, but it likely won't return results
+                    # because Amadeus doesn't include low-cost carriers
                     search_params = {
                         'originLocationCode': origin,
                         'destinationLocationCode': destination,
                         'departureDate': departure_date,
                         'adults': adults,
-                        'max': 250,  # Request more to get enough Frontier results after filtering
-                        'includedAirlineCodes': 'F9'  # Filter for Frontier Airlines only (F9)
+                        'max': 250,
+                        'includedAirlineCodes': 'F9'  # Frontier Airlines - likely returns 0 results
                     }
 
                     # Only add returnDate if it's provided (for round-trip)
@@ -65,6 +76,11 @@ class AmadeusFlightSearch:
 
                     # Search one-way or round-trip
                     response = self.amadeus.shopping.flight_offers_search.get(**search_params)
+                    
+                    # If no Frontier flights found, log the reason
+                    if len(response.data) == 0:
+                        print(f"⚠️  No Frontier (F9) flights found for {origin}->{destination}")
+                        print(f"   This is expected - Amadeus doesn't include low-cost carriers like Frontier")
 
                     # Convert Amadeus format to our app format
                     flights = self._convert_amadeus_to_app_format(response.data, origin, destination)
@@ -77,6 +93,63 @@ class AmadeusFlightSearch:
                 except ResponseError as error:
                     print(f"Error searching {origin} to {destination}: {error}")
                     print(f"Error details: {error.response.body if hasattr(error, 'response') else 'No details'}")
+                    continue
+
+        return all_flights
+
+    def search_flights_with_airline(self, origins, destinations, departure_date, return_date=None, adults=1, airline_code='AS', callback=None):
+        """
+        Search for flights using Amadeus API with a specific airline
+
+        Args:
+            origins: List of origin airport codes
+            destinations: List of destination airport codes (or ['ANY'])
+            departure_date: Departure date in YYYY-MM-DD format
+            return_date: Optional return date for round-trip
+            adults: Number of adult passengers
+            airline_code: IATA airline code to search (default: AS for Alaska Airlines)
+            callback: Optional callback function(route, flights) called for each route with results
+
+        Returns:
+            List of flight dictionaries matching our app's format
+        """
+        all_flights = []
+
+        # Handle "ANY" destination
+        if destinations == ['ANY']:
+            destinations = self._get_popular_destinations(origins)
+
+        # Search each origin-destination pair
+        for origin in origins:
+            for destination in destinations:
+                if origin == destination:
+                    continue
+
+                try:
+                    search_params = {
+                        'originLocationCode': origin,
+                        'destinationLocationCode': destination,
+                        'departureDate': departure_date,
+                        'adults': adults,
+                        'max': 50,
+                        'includedAirlineCodes': airline_code
+                    }
+
+                    if return_date:
+                        search_params['returnDate'] = return_date
+
+                    response = self.amadeus.shopping.flight_offers_search.get(**search_params)
+                    
+                    print(f"✈️  Found {len(response.data)} {airline_code} flights for {origin}->{destination}")
+
+                    flights = self._convert_amadeus_to_app_format(response.data, origin, destination)
+                    all_flights.extend(flights)
+
+                    if callback and flights:
+                        callback(f"{origin}->{destination}", flights)
+
+                except ResponseError as error:
+                    print(f"Error searching {origin} to {destination} with {airline_code}: {error}")
                     continue
 
         return all_flights

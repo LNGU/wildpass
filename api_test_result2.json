@@ -1,0 +1,16 @@
+{
+  "cached": false,
+  "count": 0,
+  "devMode": false,
+  "flights": [],
+  "searchParams": {
+    "departureDate": "2026-02-20",
+    "destinations": [
+      "PHX"
+    ],
+    "origins": [
+      "DEN"
+    ],
+    "tripType": "one-way"
+  }
+}

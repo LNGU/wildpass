@@ -99,7 +99,7 @@ class CacheManager {
 // API functions
 
 // Streaming search with EventSource (Server-Sent Events)
-export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onError) => {
+export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onError, onFallbackNotice) => {
   const { origins, destinations, tripType, departureDate, returnDate } = searchParams;
 
   // Check cache first
@@ -159,10 +159,13 @@ export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onEr
             try {
               const jsonStr = line.substring(6);
               const event = JSON.parse(jsonStr);
+              
+              // Enhanced logging for debugging
+              console.log('📦 SSE Event received:', event);
 
               if (event.complete) {
                 // Search complete
-                console.log(`Search complete: ${event.total_flights} flights`);
+                console.log(`✅ Search complete: ${event.total_flights} flights`);
 
                 // Cache all results
                 CacheManager.setCache(cacheKey, { flights: allFlights });
@@ -170,14 +173,27 @@ export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onEr
                 if (onComplete) {
                   onComplete({ total: event.total_flights, fromCache: false });
                 }
+              } else if (event.fallback_notice) {
+                // Fallback airline notice - Frontier not available
+                console.log(`⚠️ Fallback: ${event.fallback_notice}`);
+                if (onFallbackNotice) {
+                  onFallbackNotice(event.fallback_notice, event.fallback_airline);
+                }
               } else if (event.flights) {
                 // New flights received for a route
-                console.log(`Received ${event.count} flights for ${event.route}`);
+                console.log(`✈️ Received ${event.count} flights for ${event.route}`);
+                console.log('   Flight data sample:', event.flights[0]);
                 allFlights.push(...event.flights);
                 onFlights(event.flights);
+              } else if (event.error) {
+                // Error event
+                console.error('❌ API Error:', event.error);
+                if (onError) {
+                  onError(new Error(event.error));
+                }
               }
             } catch (e) {
-              console.error('Error parsing SSE event:', e);
+              console.error('Error parsing SSE event:', e, 'Raw line:', line);
             }
           }
         });

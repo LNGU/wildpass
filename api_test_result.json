@@ -1,0 +1,15 @@
+{
+  "cached": true,
+  "devMode": false,
+  "flights": [],
+  "searchParams": {
+    "departureDate": "2026-02-15",
+    "destinations": [
+      "MIA"
+    ],
+    "origins": [
+      "ORD"
+    ],
+    "tripType": "one-way"
+  }
+}
