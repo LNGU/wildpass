@@ -52,42 +52,42 @@ const FlightDetailsModal = ({ flight, onClose }) => {
             <div className="details-grid">
               <div className="detail-item">
                 <label>Airline</label>
-                <value>{flight.airline}</value>
+                <span className="value">{flight.airline}</span>
               </div>
               <div className="detail-item">
                 <label>Flight Number</label>
-                <value>{flight.flightNumber || flight.flight_number}</value>
+                <span className="value">{flight.flightNumber || flight.flight_number}</span>
               </div>
               <div className="detail-item">
                 <label>Departure Date</label>
-                <value>{formatDate(flight.departureDate || flight.departure_date)}</value>
+                <span className="value">{formatDate(flight.departureDate || flight.departure_date)}</span>
               </div>
               <div className="detail-item">
                 <label>Departure Time</label>
-                <value>{formatTime(flight.departureTime || flight.departure_time)}</value>
+                <span className="value">{formatTime(flight.departureTime || flight.departure_time)}</span>
               </div>
               <div className="detail-item">
                 <label>Arrival Date</label>
-                <value>{formatDate(flight.arrivalDate || flight.arrival_date)}</value>
+                <span className="value">{formatDate(flight.arrivalDate || flight.arrival_date)}</span>
               </div>
               <div className="detail-item">
                 <label>Arrival Time</label>
-                <value>{formatTime(flight.arrivalTime || flight.arrival_time)}</value>
+                <span className="value">{formatTime(flight.arrivalTime || flight.arrival_time)}</span>
               </div>
               <div className="detail-item">
                 <label>Duration</label>
-                <value>{flight.duration}</value>
+                <span className="value">{flight.duration}</span>
               </div>
               <div className="detail-item">
                 <label>Stops</label>
-                <value>{flight.stops === 0 ? 'Nonstop' : `${flight.stops} stop(s)`}</value>
+                <span className="value">{flight.stops === 0 ? 'Nonstop' : `${flight.stops} stop(s)`}</span>
               </div>
               {flight.seatsRemaining && (
                 <div className="detail-item">
                   <label>Seats Available</label>
-                  <value className={flight.seatsRemaining <= 3 ? 'low-seats' : ''}>
+                  <span className={`value ${flight.seatsRemaining <= 3 ? 'low-seats' : ''}`}>
                     {flight.seatsRemaining}
-                  </value>
+                  </span>
                 </div>
               )}
             </div>
@@ -100,35 +100,35 @@ const FlightDetailsModal = ({ flight, onClose }) => {
               <div className="details-grid">
                 <div className="detail-item">
                   <label>Airline</label>
-                  <value>{flight.return_flight.airline || flight.airline}</value>
+                  <span className="value">{flight.return_flight.airline || flight.airline}</span>
                 </div>
                 <div className="detail-item">
                   <label>Flight Number</label>
-                  <value>{flight.return_flight.flight_number || flight.return_flight.flightNumber}</value>
+                  <span className="value">{flight.return_flight.flight_number || flight.return_flight.flightNumber}</span>
                 </div>
                 <div className="detail-item">
                   <label>Departure Date</label>
-                  <value>{formatDate(flight.return_flight.departure_date || flight.return_flight.departureDate)}</value>
+                  <span className="value">{formatDate(flight.return_flight.departure_date || flight.return_flight.departureDate)}</span>
                 </div>
                 <div className="detail-item">
                   <label>Departure Time</label>
-                  <value>{formatTime(flight.return_flight.departure_time || flight.return_flight.departureTime)}</value>
+                  <span className="value">{formatTime(flight.return_flight.departure_time || flight.return_flight.departureTime)}</span>
                 </div>
                 <div className="detail-item">
                   <label>Arrival Date</label>
-                  <value>{formatDate(flight.return_flight.arrival_date || flight.return_flight.arrivalDate)}</value>
+                  <span className="value">{formatDate(flight.return_flight.arrival_date || flight.return_flight.arrivalDate)}</span>
                 </div>
                 <div className="detail-item">
                   <label>Arrival Time</label>
-                  <value>{formatTime(flight.return_flight.arrival_time || flight.return_flight.arrivalTime)}</value>
+                  <span className="value">{formatTime(flight.return_flight.arrival_time || flight.return_flight.arrivalTime)}</span>
                 </div>
                 <div className="detail-item">
                   <label>Duration</label>
-                  <value>{flight.return_flight.duration}</value>
+                  <span className="value">{flight.return_flight.duration}</span>
                 </div>
                 <div className="detail-item">
                   <label>Stops</label>
-                  <value>{flight.return_flight.stops === 0 ? 'Nonstop' : `${flight.return_flight.stops} stop(s)`}</value>
+                  <span className="value">{flight.return_flight.stops === 0 ? 'Nonstop' : `${flight.return_flight.stops} stop(s)`}</span>
                 </div>
               </div>
             </div>

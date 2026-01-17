@@ -28,6 +28,43 @@
   opacity: 0.95;
 }
 
+.backend-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+.backend-status .status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.backend-status.checking .status-dot {
+  background: #fbbf24;
+}
+
+.backend-status.connected .status-dot {
+  background: #34d399;
+  animation: none;
+}
+
+.backend-status.error .status-dot {
+  background: #f87171;
+  animation: none;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .main {
   flex: 1;
   padding: 2rem 0;
@@ -96,6 +133,19 @@
   margin-top: 0.5rem;
   font-size: 1rem;
   animation: fadeIn 0.3s ease-in;
+}
+
+.loading-message .status-text {
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 0.5rem;
+}
+
+.loading-message .api-hint {
+  font-size: 0.8rem;
+  color: #a0aec0;
+  margin-top: 1rem;
+  font-family: monospace;
 }
 
 @keyframes fadeIn {

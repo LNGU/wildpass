@@ -1,7 +1,10 @@
-// Use environment variable if available, otherwise default to localhost:5001
+// Use environment variable if available, otherwise default to production API
 const API_BASE_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
   ? process.env.REACT_APP_API_URL
-  : 'http://localhost:5001/api';
+  : 'https://wildpass-api.onrender.com/api';
+
+// Log API URL for debugging
+console.log('🔗 API Base URL:', API_BASE_URL);
 
 // Cache utilities
 const CACHE_PREFIX = 'wildpass_';

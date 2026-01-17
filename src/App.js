@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import SearchForm from './components/SearchForm';
 import FlightResults from './components/FlightResults';
-import { searchFlightsStreaming, clearLocalCache, planTrip } from './services/api';
+import { searchFlightsStreaming, clearLocalCache, planTrip, healthCheck } from './services/api';
 
 function App() {
   const [searchParams, setSearchParams] = useState(null);
@@ -13,6 +13,29 @@ function App() {
   const [routesSearched, setRoutesSearched] = useState(0);
   const [totalRoutes, setTotalRoutes] = useState(0);
   const [tripPlannerInfo, setTripPlannerInfo] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [backendStatus, setBackendStatus] = useState({ status: 'checking', message: 'Checking backend...' });
+
+  // Check backend health on mount
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        setBackendStatus({ status: 'checking', message: 'Connecting to backend...' });
+        const result = await healthCheck();
+        setBackendStatus({ 
+          status: 'connected', 
+          message: 'Connected' 
+        });
+      } catch (err) {
+        console.error('Backend health check failed:', err);
+        setBackendStatus({ 
+          status: 'error', 
+          message: `Backend unavailable: ${err.message}` 
+        });
+      }
+    };
+    checkBackend();
+  }, []);
 
   // Build-your-own mode state
   const [selectedOutboundFlight, setSelectedOutboundFlight] = useState(null);
@@ -70,6 +93,7 @@ function App() {
     setSearchParams(params);
     setLoading(true);
     setError(null);
+    setStatusMessage('Connecting to server...');
 
     // Always clear flights when starting a new search
     setFlights([]);
@@ -122,18 +146,21 @@ function App() {
       params,
       // onFlights callback - called each time new flights arrive
       (newFlights) => {
+        setStatusMessage(`Receiving flight data...`);
         setFlights(prevFlights => [...prevFlights, ...newFlights]);
         setRoutesSearched(prev => prev + 1);
       },
       // onComplete callback - called when search is done
       (result) => {
         setLoading(false);
+        setStatusMessage('');
         setFromCache(result.fromCache || false);
         console.log(`Search complete: ${result.total} total flights`);
       },
       // onError callback
       (err) => {
         setError(err.message || 'Failed to fetch flights. Please try again.');
+        setStatusMessage('');
         console.error('Search error:', err);
         setLoading(false);
       }
@@ -146,6 +173,10 @@ function App() {
         <div className="container">
           <h1>WildPass</h1>
           <p className="tagline">Find the best flight deals across multiple destinations</p>
+          <div className={`backend-status ${backendStatus.status}`}>
+            <span className="status-dot"></span>
+            <span className="status-text">{backendStatus.message}</span>
+          </div>
         </div>
       </header>
 
@@ -160,10 +191,12 @@ function App() {
           {loading && (
             <div className="loading-message">
               <div className="spinner"></div>
+              <p className="status-text">{statusMessage || 'Initializing...'}</p>
               <p>Searching for flights... {routesSearched}/{totalRoutes} routes searched</p>
               {flights.length > 0 && (
                 <p className="flights-found">{flights.length} flights found so far</p>
               )}
+              <p className="api-hint">Connecting to: wildpass-api.onrender.com</p>
             </div>
           )}
           {searchParams && flights.length > 0 && (

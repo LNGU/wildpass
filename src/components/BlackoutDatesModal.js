@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/BlackoutDatesModal.css';
 
+// Use the same API URL logic as the main api.js
+const API_BASE_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
+  ? process.env.REACT_APP_API_URL
+  : 'https://wildpass-api.onrender.com/api';
+
 const BlackoutDatesModal = ({ isOpen, onClose }) => {
   const [blackoutData, setBlackoutData] = useState(null);
   const [selectedYear, setSelectedYear] = useState('2026');
@@ -20,7 +25,7 @@ const BlackoutDatesModal = ({ isOpen, onClose }) => {
 
   const loadBlackoutDates = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/blackout-dates');
+      const response = await fetch(`${API_BASE_URL}/blackout-dates`);
       const data = await response.json();
       
       setLastUpdated(data.last_updated);
