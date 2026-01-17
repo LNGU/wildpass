@@ -32,3 +32,4 @@ dist/
 *.dmg
 *.AppImage
 *.snap
+.vercel

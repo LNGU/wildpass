@@ -29,6 +29,7 @@
     "cross-env": "^10.1.0",
     "electron": "^39.2.7",
     "electron-builder": "^26.4.0",
+    "pwa-asset-generator": "^8.1.2",
     "wait-on": "^9.0.3"
   },
   "build": {
@@ -49,7 +50,12 @@
       {
         "from": "backend",
         "to": "backend",
-        "filter": ["**/*", "!venv/**/*", "!__pycache__/**/*", "!*.pyc"]
+        "filter": [
+          "**/*",
+          "!venv/**/*",
+          "!__pycache__/**/*",
+          "!*.pyc"
+        ]
       }
     ],
     "directories": {

@@ -8,3 +8,4 @@ webdriver-manager==4.0.1
 browser-cookie3==0.19.1
 amadeus==8.1.0
 python-dotenv==1.0.0
+gunicorn==21.2.0

@@ -483,5 +483,8 @@ def refresh_blackout_dates():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Run on port 5001 (5000 is often used by macOS AirPlay)
-    app.run(debug=True, port=5001, host='127.0.0.1')
+    # Run on port 5001 locally (5000 is often used by macOS AirPlay)
+    # In production, PORT is set by the hosting platform
+    port = int(os.environ.get('PORT', 5001))
+    debug = os.environ.get('FLASK_DEBUG', 'true').lower() == 'true'
+    app.run(debug=debug, port=port, host='0.0.0.0')
