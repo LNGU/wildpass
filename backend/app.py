@@ -27,6 +27,11 @@ def index():
         'version': '1.0.0'
     })
 
+# Health check at /health for Render
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok'})
+
 # Update blackout dates on startup
 print("🚀 Starting WildPass Backend...")
 update_if_needed()
