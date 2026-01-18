@@ -1,0 +1,15 @@
+{
+  "cached": true,
+  "devMode": false,
+  "flights": [],
+  "searchParams": {
+    "departureDate": "2026-02-20",
+    "destinations": [
+      "LAX"
+    ],
+    "origins": [
+      "SEA"
+    ],
+    "tripType": "one-way"
+  }
+}

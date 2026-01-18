@@ -15,10 +15,18 @@ class AmadeusFlightSearch:
         if not self.api_key or not self.api_secret:
             raise ValueError("Amadeus API credentials not provided")
 
+        # Check if using production environment
+        # Set AMADEUS_ENV=production in environment to use production API
+        use_production = os.environ.get('AMADEUS_ENV', 'test').lower() == 'production'
+        
         self.amadeus = Client(
             client_id=self.api_key,
-            client_secret=self.api_secret
+            client_secret=self.api_secret,
+            hostname='production' if use_production else 'test'
         )
+        
+        env_type = 'PRODUCTION' if use_production else 'TEST'
+        print(f"🔗 Amadeus API initialized in {env_type} mode")
 
     def search_flights(self, origins, destinations, departure_date, return_date=None, adults=1, callback=None):
         """

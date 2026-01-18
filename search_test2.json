@@ -1,0 +1,18 @@
+{
+  "cached": false,
+  "count": 0,
+  "devMode": false,
+  "fallback_airline_used": "AS",
+  "fallback_notice": "Frontier Airlines (F9) is not available in Amadeus. Showing Alaska Airlines flights instead.",
+  "flights": [],
+  "searchParams": {
+    "departureDate": "2026-02-20",
+    "destinations": [
+      "LAX"
+    ],
+    "origins": [
+      "SEA"
+    ],
+    "tripType": "one-way"
+  }
+}

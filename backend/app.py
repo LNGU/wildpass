@@ -79,15 +79,18 @@ def is_cache_valid(cache_entry):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
+    amadeus_env = os.environ.get('AMADEUS_ENV', 'test').lower()
     return jsonify({
         'status': 'ok',
         'message': 'Flight Search API is running',
         'amadeus_enabled': AMADEUS_ENABLED,
+        'amadeus_environment': amadeus_env,
         'dev_mode': DEV_MODE,
         'fallback_airline': FALLBACK_AIRLINE,
         'amadeus_api_key_set': bool(os.environ.get('AMADEUS_API_KEY')),
         'amadeus_api_secret_set': bool(os.environ.get('AMADEUS_API_SECRET')),
-        'note': f'Amadeus does not include Frontier (F9). Will fallback to {FALLBACK_AIRLINE} when no F9 flights found.'
+        'note': f'Amadeus does not include Frontier (F9). Will fallback to {FALLBACK_AIRLINE} when no F9 flights found.',
+        'production_note': 'Set AMADEUS_ENV=production and use production API keys for real data'
     })
 
 @app.route('/api/debug/amadeus-test', methods=['GET'])
