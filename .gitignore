@@ -33,3 +33,4 @@ dist/
 *.AppImage
 *.snap
 .vercel
+.env*.local
