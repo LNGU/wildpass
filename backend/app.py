@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 # from scraper import FrontierScraper  # Commented out - using Amadeus API instead
 from amadeus_api import AmadeusFlightSearch
-from flight_api_fallback import FlightSearchWithFallback
+from realtime_flights import RealTimeFlightService
 from trip_planner import find_optimal_trips
 from gowild_blackout import GoWildBlackoutDates
 from blackout_updater import update_if_needed, get_blackout_data
@@ -25,7 +25,7 @@ def index():
     return jsonify({
         'status': 'ok',
         'service': 'WildPass Flight Search API',
-        'version': '1.1.0'  # Updated with AviationStack fallback
+        'version': '1.2.0'  # Added real-time flight status
     })
 
 # Health check at /health for Render
@@ -52,8 +52,8 @@ try:
 except ValueError as e:
     print(f"Warning: Amadeus API not configured: {e}")
 
-# Initialize Flight Search with Fallback (Amadeus -> AviationStack)
-flight_search = FlightSearchWithFallback(amadeus_client=amadeus_client)
+# Initialize Real-Time Flight Service (AviationStack)
+realtime_service = RealTimeFlightService()
 
 # Development mode - set to True to return mock data instead of scraping
 # If Amadeus is enabled, DEV_MODE defaults to False (use real data)
@@ -78,17 +78,14 @@ def is_cache_valid(cache_entry):
 def health_check():
     """Health check endpoint"""
     amadeus_env = os.environ.get('AMADEUS_ENV', 'test').lower()
-    api_status = flight_search.get_status()
     return jsonify({
         'status': 'ok',
         'message': 'Flight Search API is running',
         'amadeus_enabled': AMADEUS_ENABLED,
         'amadeus_environment': amadeus_env,
         'dev_mode': DEV_MODE,
-        'api_status': api_status,
-        'aviationstack_configured': api_status['aviationstack'],
-        'fallback_available': api_status['fallback_available'],
-        'note': 'Using fallback: Amadeus -> AviationStack for Frontier (F9) flights'
+        'realtime_service_enabled': realtime_service.is_configured(),
+        'note': 'Real-time flight status powered by AviationStack'
     })
 
 @app.route('/api/debug/amadeus-test', methods=['GET'])
@@ -226,36 +223,11 @@ def search_flights():
                 'devMode': DEV_MODE
             })
 
-        # Use mock data in dev mode, otherwise use fallback search
-        data_source = None
-        fallback_notice = None
-        
-        if DEV_MODE:
-            print(f"[DEV MODE] Generating mock flights for {origins} -> {destinations}")
-            flights = generate_mock_flights(origins, destinations, departure_date, return_date)
-            data_source = 'mock'
-        else:
-            # Use Flight Search with Fallback (Amadeus -> AviationStack)
-            print(f"[FLIGHT API] Searching flights for {origins} -> {destinations}")
-
-            # Set return_date based on trip type
-            if trip_type == 'one-way':
-                search_return_date = None
-            elif trip_type == 'day-trip':
-                search_return_date = departure_date
-            else:  # round-trip
-                search_return_date = return_date
-
-            flights, data_source, fallback_notice = flight_search.search_flights(
-                origins=origins,
-                destinations=destinations,
-                departure_date=departure_date,
-                return_date=search_return_date,
-                adults=1
-            )
-            
-            if not flights:
-                print(f"No flights found from any API for {origins} -> {destinations}")
+        # Use mock data for flight search (Amadeus doesn't have Frontier F9)
+        # Real-time flight status is available via /api/realtime/* endpoints
+        print(f"[MOCK DATA] Generating flights for {origins} -> {destinations}")
+        flights = generate_mock_flights(origins, destinations, departure_date, return_date)
+        data_source = 'mock'
 
         # Cache the results
         cache[cache_key] = {
@@ -269,12 +241,10 @@ def search_flights():
             'searchParams': data,
             'count': len(flights),
             'devMode': DEV_MODE,
-            'data_source': data_source
+            'data_source': data_source,
+            'realtime_available': realtime_service.is_configured(),
+            'realtime_hint': 'Use /api/realtime/route for live flight status'
         }
-        
-        # Add fallback notice if applicable
-        if fallback_notice:
-            response_data['fallback_notice'] = fallback_notice
 
         return jsonify(response_data)
 
@@ -310,96 +280,57 @@ def search_flights_stream():
             """Generator function for streaming results"""
             all_flights = []
 
-            # Use mock data in dev mode, otherwise use fallback search
-            if DEV_MODE:
-                # For mock data, simulate streaming
-                dest_list = destinations if destinations != ['ANY'] else ['MCO', 'LAS', 'MIA', 'PHX', 'ATL']
+            # Generate mock data and stream it
+            dest_list = destinations if destinations != ['ANY'] else ['MCO', 'LAS', 'MIA', 'PHX', 'ATL']
 
-                # Check for blackout dates
-                blackout_info = GoWildBlackoutDates.is_flight_affected_by_blackout(departure_date, return_date)
+            # Check for blackout dates
+            blackout_info = GoWildBlackoutDates.is_flight_affected_by_blackout(departure_date, return_date)
 
-                for origin in origins:
-                    for destination in dest_list[:5]:
-                        if origin == destination:
-                            continue
+            for origin in origins:
+                for destination in dest_list[:5]:
+                    if origin == destination:
+                        continue
 
-                        # Generate mock flights for this route
-                        route_flights = []
-                        for _ in range(random.randint(1, 3)):
-                            hour = random.randint(6, 20)
-                            minute = random.choice(['00', '15', '30', '45'])
-                            flight = {
-                                'origin': origin,
-                                'destination': destination,
-                                'departure_date': departure_date,
-                                'departure_time': f"{hour:02d}:{minute}",
-                                'arrival_time': f"{(hour+3):02d}:{minute}",
-                                'duration': '3h 0m',
-                                'price': round(random.uniform(29, 199), 2),
-                                'currency': 'USD',
-                                'airline': 'Frontier Airlines',
-                                'flight_number': f"F9-{random.randint(1000, 9999)}",
-                                'stops': 0,
-                                'aircraft': '320',
-                                'booking_class': 'Economy',
-                                'gowild_eligible': random.choice([True, True, False]),
-                                'blackout_dates': blackout_info
-                            }
-                            route_flights.append(flight)
-
-                        all_flights.extend(route_flights)
-
-                        # Stream this route's results
-                        event_data = {
-                            'route': f"{origin}->{destination}",
-                            'flights': route_flights,
-                            'count': len(route_flights)
+                    # Generate mock flights for this route
+                    route_flights = []
+                    for _ in range(random.randint(1, 3)):
+                        hour = random.randint(6, 20)
+                        minute = random.choice(['00', '15', '30', '45'])
+                        flight = {
+                            'origin': origin,
+                            'destination': destination,
+                            'departure_date': departure_date,
+                            'departure_time': f"{hour:02d}:{minute}",
+                            'arrival_time': f"{(hour+3):02d}:{minute}",
+                            'duration': '3h 0m',
+                            'price': round(random.uniform(29, 199), 2),
+                            'currency': 'USD',
+                            'airline': 'Frontier Airlines',
+                            'flight_number': f"F9-{random.randint(1000, 9999)}",
+                            'stops': 0,
+                            'aircraft': '320',
+                            'booking_class': 'Economy',
+                            'gowild_eligible': random.choice([True, True, False]),
+                            'blackout_dates': blackout_info
                         }
-                        yield f"data: {json.dumps(event_data)}\n\n"
-                        time.sleep(0.1)  # Simulate API delay
+                        route_flights.append(flight)
 
-            else:
-                # Use Flight Search with Fallback (Amadeus -> AviationStack)
-                if trip_type == 'one-way':
-                    search_return_date = None
-                elif trip_type == 'day-trip':
-                    search_return_date = departure_date
-                else:  # round-trip
-                    search_return_date = return_date
+                    all_flights.extend(route_flights)
 
-                streamed_results = []
-                
-                def stream_callback(route, flights):
-                    """Callback to collect and stream results"""
-                    streamed_results.append({
-                        'route': route,
-                        'flights': flights,
-                        'count': len(flights)
-                    })
-
-                # Search with fallback
-                all_flights, data_source, fallback_notice = flight_search.search_flights(
-                    origins=origins,
-                    destinations=destinations,
-                    departure_date=departure_date,
-                    return_date=search_return_date,
-                    adults=1,
-                    callback=stream_callback
-                )
-
-                # Send fallback notice if applicable
-                if fallback_notice:
-                    yield f"data: {json.dumps({'fallback_notice': fallback_notice, 'data_source': data_source})}\n\n"
-
-                # Stream the collected results
-                for result in streamed_results:
-                    result['data_source'] = data_source
-                    yield f"data: {json.dumps(result)}\n\n"
+                    # Stream this route's results
+                    event_data = {
+                        'route': f"{origin}->{destination}",
+                        'flights': route_flights,
+                        'count': len(route_flights)
+                    }
+                    yield f"data: {json.dumps(event_data)}\n\n"
+                    time.sleep(0.1)  # Simulate API delay
 
             # Send completion event
             completion_data = {
                 'complete': True,
-                'total_flights': len(all_flights)
+                'total_flights': len(all_flights),
+                'realtime_available': realtime_service.is_configured()
             }
             yield f"data: {json.dumps(completion_data)}\n\n"
 
@@ -623,6 +554,124 @@ def debug_search():
             'error': str(e),
             'traceback': traceback.format_exc()
         }), 500
+
+# =============================================================================
+# REAL-TIME FLIGHT STATUS ENDPOINTS (powered by AviationStack)
+# =============================================================================
+
+@app.route('/api/realtime/flight/<flight_number>', methods=['GET'])
+def get_realtime_flight_status(flight_number):
+    """
+    Get real-time status for a specific flight
+    
+    Example: GET /api/realtime/flight/F9777
+    
+    Returns live flight info including:
+    - Flight status (scheduled, active, landed, cancelled)
+    - Actual vs scheduled departure/arrival times
+    - Delays
+    - Gate and terminal information
+    """
+    if not realtime_service.is_configured():
+        return jsonify({
+            'error': 'Real-time flight service not configured',
+            'hint': 'Set AVIATIONSTACK_API_KEY in environment'
+        }), 503
+    
+    result = realtime_service.get_flight_status(flight_number)
+    
+    if 'error' in result:
+        return jsonify(result), 404
+    
+    return jsonify(result)
+
+@app.route('/api/realtime/route', methods=['GET'])
+def get_realtime_route_flights():
+    """
+    Get all real-time flights for a route
+    
+    Query params:
+    - origin: Origin airport code (required)
+    - destination: Destination airport code (required)
+    - airline: Airline code (default: F9)
+    
+    Example: GET /api/realtime/route?origin=DEN&destination=LAS&airline=F9
+    """
+    if not realtime_service.is_configured():
+        return jsonify({
+            'error': 'Real-time flight service not configured',
+            'hint': 'Set AVIATIONSTACK_API_KEY in environment'
+        }), 503
+    
+    origin = request.args.get('origin')
+    destination = request.args.get('destination')
+    airline = request.args.get('airline', 'F9')
+    
+    if not origin or not destination:
+        return jsonify({
+            'error': 'Missing required parameters: origin, destination'
+        }), 400
+    
+    result = realtime_service.get_route_flights(origin.upper(), destination.upper(), airline.upper())
+    
+    if 'error' in result and not result.get('flights'):
+        return jsonify(result), 500
+    
+    return jsonify(result)
+
+@app.route('/api/realtime/departures/<airport_code>', methods=['GET'])
+def get_realtime_departures(airport_code):
+    """
+    Get all real-time departures from an airport
+    
+    Query params:
+    - airline: Airline code (default: F9)
+    
+    Example: GET /api/realtime/departures/DEN?airline=F9
+    """
+    if not realtime_service.is_configured():
+        return jsonify({
+            'error': 'Real-time flight service not configured',
+            'hint': 'Set AVIATIONSTACK_API_KEY in environment'
+        }), 503
+    
+    airline = request.args.get('airline', 'F9')
+    
+    result = realtime_service.get_departures(airport_code.upper(), airline.upper())
+    
+    if 'error' in result and not result.get('flights'):
+        return jsonify(result), 500
+    
+    return jsonify(result)
+
+@app.route('/api/realtime/arrivals/<airport_code>', methods=['GET'])
+def get_realtime_arrivals(airport_code):
+    """
+    Get all real-time arrivals to an airport
+    
+    Query params:
+    - airline: Airline code (default: F9)
+    
+    Example: GET /api/realtime/arrivals/LAS?airline=F9
+    """
+    if not realtime_service.is_configured():
+        return jsonify({
+            'error': 'Real-time flight service not configured',
+            'hint': 'Set AVIATIONSTACK_API_KEY in environment'
+        }), 503
+    
+    airline = request.args.get('airline', 'F9')
+    
+    result = realtime_service.get_arrivals(airport_code.upper(), airline.upper())
+    
+    if 'error' in result and not result.get('flights'):
+        return jsonify(result), 500
+    
+    return jsonify(result)
+
+# =============================================================================
+# BLACKOUT DATES ENDPOINTS
+# =============================================================================
 
 @app.route('/api/blackout-dates', methods=['GET'])
 def get_blackout_dates():
