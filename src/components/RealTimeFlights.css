@@ -113,6 +113,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .airport-selector label {
@@ -120,20 +121,66 @@
   font-size: 0.9rem;
 }
 
+.airport-select-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: relative;
+}
+
+.airport-filter-input {
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px 6px 0 0;
+  border: 2px solid #334155;
+  border-bottom: 1px solid #334155;
+  background: #1e293b;
+  color: #fff;
+  font-size: 0.85rem;
+  width: 180px;
+}
+
+.airport-filter-input:focus {
+  outline: none;
+  border-color: #00d4ff;
+}
+
+.airport-filter-input::placeholder {
+  color: #64748b;
+}
+
 .airport-select {
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: 0 0 8px 8px;
   border: 2px solid #334155;
+  border-top: none;
   background: #0f172a;
   color: #fff;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
+  width: 180px;
+  max-height: 200px;
+}
+
+.airport-select option {
+  padding: 0.5rem;
+  background: #0f172a;
+}
+
+.airport-select option:hover {
+  background: #1e293b;
 }
 
 .airport-select:focus {
   outline: none;
   border-color: #00d4ff;
+}
+
+.selected-airport {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #00d4ff;
+  margin-left: 0.5rem;
 }
 
 .view-toggle {
