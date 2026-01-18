@@ -6,6 +6,9 @@ const API_BASE_URL = typeof process !== 'undefined' && process.env && process.en
 // Log API URL for debugging
 console.log('🔗 API Base URL:', API_BASE_URL);
 
+// Export base URL for components that need it
+export const getApiBaseUrl = () => API_BASE_URL;
+
 // Cache utilities
 const CACHE_PREFIX = 'wildpass_';
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds

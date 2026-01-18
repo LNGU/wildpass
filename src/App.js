@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import SearchForm from './components/SearchForm';
 import FlightResults from './components/FlightResults';
-import { searchFlightsStreaming, clearLocalCache, planTrip, healthCheck } from './services/api';
+import RealTimeFlights from './components/RealTimeFlights';
+import { searchFlightsStreaming, clearLocalCache, planTrip, healthCheck, getApiBaseUrl } from './services/api';
 
 function App() {
   const [searchParams, setSearchParams] = useState(null);
@@ -16,13 +17,14 @@ function App() {
   const [statusMessage, setStatusMessage] = useState('');
   const [backendStatus, setBackendStatus] = useState({ status: 'checking', message: 'Checking backend...' });
   const [fallbackNotice, setFallbackNotice] = useState(null);
+  const [activeTab, setActiveTab] = useState('search'); // 'search' or 'realtime'
 
   // Check backend health on mount
   useEffect(() => {
     const checkBackend = async () => {
       try {
         setBackendStatus({ status: 'checking', message: 'Connecting to backend...' });
-        const result = await healthCheck();
+        await healthCheck();
         setBackendStatus({ 
           status: 'connected', 
           message: 'Connected' 
@@ -40,6 +42,7 @@ function App() {
 
   // Build-your-own mode state
   const [selectedOutboundFlight, setSelectedOutboundFlight] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [returnFlights, setReturnFlights] = useState([]);
   const [buildYourOwnStep, setBuildYourOwnStep] = useState('outbound'); // 'outbound' or 'return'
 
@@ -189,6 +192,25 @@ function App() {
 
       <main className="main">
         <div className="container">
+          <div className="tab-navigation">
+            <button 
+              className={`tab-btn ${activeTab === 'search' ? 'active' : ''}`}
+              onClick={() => setActiveTab('search')}
+            >
+              🔍 Search Flights
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'realtime' ? 'active' : ''}`}
+              onClick={() => setActiveTab('realtime')}
+            >
+              ✈️ Real-Time Status
+            </button>
+          </div>
+          
+          {activeTab === 'realtime' ? (
+            <RealTimeFlights apiBaseUrl={getApiBaseUrl()} />
+          ) : (
+            <>
           <SearchForm onSearch={handleSearch} loading={loading} />
           {error && (
             <div className="error-message">
@@ -225,6 +247,8 @@ function App() {
               onSelectReturn={handleSelectReturnFlight}
               onResetBuildYourOwn={handleResetBuildYourOwn}
             />
+          )}
+            </>
           )}
         </div>
       </main>
