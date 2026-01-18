@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 # from scraper import FrontierScraper  # Commented out - using Amadeus API instead
 from amadeus_api import AmadeusFlightSearch
+from flight_api_fallback import FlightSearchWithFallback
 from trip_planner import find_optimal_trips
 from gowild_blackout import GoWildBlackoutDates
 from blackout_updater import update_if_needed, get_blackout_data
@@ -24,7 +25,7 @@ def index():
     return jsonify({
         'status': 'ok',
         'service': 'WildPass Flight Search API',
-        'version': '1.0.0'
+        'version': '1.1.0'  # Updated with AviationStack fallback
     })
 
 # Health check at /health for Render
@@ -40,6 +41,8 @@ update_if_needed()
 # scraper = FrontierScraper()
 
 # Initialize Amadeus API client
+amadeus_client = None
+AMADEUS_ENABLED = False
 try:
     amadeus_client = AmadeusFlightSearch(
         api_key=os.environ.get('AMADEUS_API_KEY'),
@@ -48,18 +51,13 @@ try:
     AMADEUS_ENABLED = True
 except ValueError as e:
     print(f"Warning: Amadeus API not configured: {e}")
-    amadeus_client = None
-    AMADEUS_ENABLED = False
+
+# Initialize Flight Search with Fallback (Amadeus -> AviationStack)
+flight_search = FlightSearchWithFallback(amadeus_client=amadeus_client)
 
 # Development mode - set to True to return mock data instead of scraping
 # If Amadeus is enabled, DEV_MODE defaults to False (use real data)
-# NOTE: Amadeus Self-Service API does NOT include Frontier Airlines (F9) or other
-# low-cost carriers. When F9 returns no results, we fallback to Alaska Airlines (AS).
 DEV_MODE = os.environ.get('DEV_MODE', 'false' if AMADEUS_ENABLED else 'true').lower() == 'true'
-
-# Fallback airline when Frontier (F9) returns no results
-# Alaska Airlines (AS) is a supported airline in Amadeus
-FALLBACK_AIRLINE = os.environ.get('FALLBACK_AIRLINE', 'AS')  # AS = Alaska Airlines
 
 # Simple in-memory cache
 cache = {}
@@ -80,17 +78,17 @@ def is_cache_valid(cache_entry):
 def health_check():
     """Health check endpoint"""
     amadeus_env = os.environ.get('AMADEUS_ENV', 'test').lower()
+    api_status = flight_search.get_status()
     return jsonify({
         'status': 'ok',
         'message': 'Flight Search API is running',
         'amadeus_enabled': AMADEUS_ENABLED,
         'amadeus_environment': amadeus_env,
         'dev_mode': DEV_MODE,
-        'fallback_airline': FALLBACK_AIRLINE,
-        'amadeus_api_key_set': bool(os.environ.get('AMADEUS_API_KEY')),
-        'amadeus_api_secret_set': bool(os.environ.get('AMADEUS_API_SECRET')),
-        'note': f'Amadeus does not include Frontier (F9). Will fallback to {FALLBACK_AIRLINE} when no F9 flights found.',
-        'production_note': 'Set AMADEUS_ENV=production and use production API keys for real data'
+        'api_status': api_status,
+        'aviationstack_configured': api_status['aviationstack'],
+        'fallback_available': api_status['fallback_available'],
+        'note': 'Using fallback: Amadeus -> AviationStack for Frontier (F9) flights'
     })
 
 @app.route('/api/debug/amadeus-test', methods=['GET'])
@@ -228,15 +226,17 @@ def search_flights():
                 'devMode': DEV_MODE
             })
 
-        # Use mock data in dev mode, Amadeus API if enabled, otherwise scrape
-        fallback_used = False  # Track if we fell back to a different airline
+        # Use mock data in dev mode, otherwise use fallback search
+        data_source = None
+        fallback_notice = None
         
         if DEV_MODE:
             print(f"[DEV MODE] Generating mock flights for {origins} -> {destinations}")
             flights = generate_mock_flights(origins, destinations, departure_date, return_date)
-        elif AMADEUS_ENABLED:
-            # Use Amadeus API for real flight data
-            print(f"[AMADEUS API] Searching flights for {origins} -> {destinations}")
+            data_source = 'mock'
+        else:
+            # Use Flight Search with Fallback (Amadeus -> AviationStack)
+            print(f"[FLIGHT API] Searching flights for {origins} -> {destinations}")
 
             # Set return_date based on trip type
             if trip_type == 'one-way':
@@ -246,7 +246,7 @@ def search_flights():
             else:  # round-trip
                 search_return_date = return_date
 
-            flights = amadeus_client.search_flights(
+            flights, data_source, fallback_notice = flight_search.search_flights(
                 origins=origins,
                 destinations=destinations,
                 departure_date=departure_date,
@@ -254,28 +254,8 @@ def search_flights():
                 adults=1
             )
             
-            # FALLBACK: If Amadeus returns 0 flights for Frontier (F9),
-            # search for fallback airline (Alaska Airlines by default)
-            if len(flights) == 0 and FALLBACK_AIRLINE:
-                print(f"[FALLBACK] Frontier (F9) returned 0 flights - trying {FALLBACK_AIRLINE}")
-                print(f"   Note: Amadeus Self-Service API doesn't include low-cost carriers like Frontier")
-                flights = amadeus_client.search_flights_with_airline(
-                    origins=origins,
-                    destinations=destinations,
-                    departure_date=departure_date,
-                    return_date=search_return_date,
-                    adults=1,
-                    airline_code=FALLBACK_AIRLINE
-                )
-                fallback_used = True
-        else:
-            # Scraper not available - return error
-            print(f"ERROR: Neither Amadeus API nor scraper is available")
-            return jsonify({
-                'error': 'Flight search not available. Please configure Amadeus API credentials or enable DEV_MODE.',
-                'devMode': DEV_MODE,
-                'amadeusEnabled': AMADEUS_ENABLED
-            }), 503
+            if not flights:
+                print(f"No flights found from any API for {origins} -> {destinations}")
 
         # Cache the results
         cache[cache_key] = {
@@ -288,13 +268,13 @@ def search_flights():
             'cached': False,
             'searchParams': data,
             'count': len(flights),
-            'devMode': DEV_MODE
+            'devMode': DEV_MODE,
+            'data_source': data_source
         }
         
-        # Add fallback notice if we used a different airline
-        if AMADEUS_ENABLED and fallback_used:
-            response_data['fallback_airline_used'] = FALLBACK_AIRLINE
-            response_data['fallback_notice'] = f'Frontier Airlines (F9) is not available in Amadeus. Showing {amadeus_client._get_airline_name(FALLBACK_AIRLINE)} flights instead.'
+        # Add fallback notice if applicable
+        if fallback_notice:
+            response_data['fallback_notice'] = fallback_notice
 
         return jsonify(response_data)
 
@@ -329,17 +309,8 @@ def search_flights_stream():
         def generate():
             """Generator function for streaming results"""
             all_flights = []
-            streamed_results = []
 
-            def stream_callback(route, flights):
-                """Callback to store results for streaming"""
-                streamed_results.append({
-                    'route': route,
-                    'flights': flights,
-                    'count': len(flights)
-                })
-
-            # Use mock data in dev mode, Amadeus API if enabled
+            # Use mock data in dev mode, otherwise use fallback search
             if DEV_MODE:
                 # For mock data, simulate streaming
                 dest_list = destinations if destinations != ['ANY'] else ['MCO', 'LAS', 'MIA', 'PHX', 'ATL']
@@ -387,8 +358,8 @@ def search_flights_stream():
                         yield f"data: {json.dumps(event_data)}\n\n"
                         time.sleep(0.1)  # Simulate API delay
 
-            elif AMADEUS_ENABLED:
-                # Set return_date based on trip type
+            else:
+                # Use Flight Search with Fallback (Amadeus -> AviationStack)
                 if trip_type == 'one-way':
                     search_return_date = None
                 elif trip_type == 'day-trip':
@@ -396,8 +367,18 @@ def search_flights_stream():
                 else:  # round-trip
                     search_return_date = return_date
 
-                # Search with streaming callback
-                all_flights = amadeus_client.search_flights(
+                streamed_results = []
+                
+                def stream_callback(route, flights):
+                    """Callback to collect and stream results"""
+                    streamed_results.append({
+                        'route': route,
+                        'flights': flights,
+                        'count': len(flights)
+                    })
+
+                # Search with fallback
+                all_flights, data_source, fallback_notice = flight_search.search_flights(
                     origins=origins,
                     destinations=destinations,
                     departure_date=departure_date,
@@ -406,42 +387,14 @@ def search_flights_stream():
                     callback=stream_callback
                 )
 
+                # Send fallback notice if applicable
+                if fallback_notice:
+                    yield f"data: {json.dumps({'fallback_notice': fallback_notice, 'data_source': data_source})}\n\n"
+
                 # Stream the collected results
                 for result in streamed_results:
+                    result['data_source'] = data_source
                     yield f"data: {json.dumps(result)}\n\n"
-                
-                # FALLBACK: If Amadeus returns 0 flights for Frontier, try fallback airline
-                if len(all_flights) == 0 and FALLBACK_AIRLINE:
-                    print(f"[FALLBACK STREAM] Frontier (F9) returned 0 flights - trying {FALLBACK_AIRLINE}")
-                    
-                    # Send notice about fallback
-                    fallback_notice = {
-                        'fallback_notice': f'Frontier Airlines (F9) is not available in Amadeus. Showing {amadeus_client._get_airline_name(FALLBACK_AIRLINE)} flights instead.',
-                        'fallback_airline': FALLBACK_AIRLINE
-                    }
-                    yield f"data: {json.dumps(fallback_notice)}\n\n"
-                    
-                    # Search with fallback airline
-                    fallback_results = []
-                    def fallback_callback(route, flights):
-                        fallback_results.append({
-                            'route': route,
-                            'flights': flights,
-                            'count': len(flights)
-                        })
-                    
-                    all_flights = amadeus_client.search_flights_with_airline(
-                        origins=origins,
-                        destinations=destinations,
-                        departure_date=departure_date,
-                        return_date=search_return_date,
-                        adults=1,
-                        airline_code=FALLBACK_AIRLINE,
-                        callback=fallback_callback
-                    )
-                    
-                    for result in fallback_results:
-                        yield f"data: {json.dumps(result)}\n\n"
 
             # Send completion event
             completion_data = {
