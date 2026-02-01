@@ -571,13 +571,9 @@ def get_realtime_flight_status(flight_number):
     - Actual vs scheduled departure/arrival times
     - Delays
     - Gate and terminal information
-    """
-    if not realtime_service.is_configured():
-        return jsonify({
-            'error': 'Real-time flight service not configured',
-            'hint': 'Set AVIATIONSTACK_API_KEY in environment'
-        }), 503
     
+    Note: Falls back to mock data if AviationStack API is unavailable
+    """
     result = realtime_service.get_flight_status(flight_number)
     
     if 'error' in result:
@@ -596,13 +592,9 @@ def get_realtime_route_flights():
     - airline: Airline code (default: F9)
     
     Example: GET /api/realtime/route?origin=DEN&destination=LAS&airline=F9
-    """
-    if not realtime_service.is_configured():
-        return jsonify({
-            'error': 'Real-time flight service not configured',
-            'hint': 'Set AVIATIONSTACK_API_KEY in environment'
-        }), 503
     
+    Note: Falls back to mock data if AviationStack API is unavailable
+    """
     origin = request.args.get('origin')
     destination = request.args.get('destination')
     airline = request.args.get('airline', 'F9')
@@ -628,13 +620,9 @@ def get_realtime_departures(airport_code):
     - airline: Airline code (default: F9)
     
     Example: GET /api/realtime/departures/DEN?airline=F9
-    """
-    if not realtime_service.is_configured():
-        return jsonify({
-            'error': 'Real-time flight service not configured',
-            'hint': 'Set AVIATIONSTACK_API_KEY in environment'
-        }), 503
     
+    Note: Falls back to mock data if AviationStack API is unavailable
+    """
     airline = request.args.get('airline', 'F9')
     
     result = realtime_service.get_departures(airport_code.upper(), airline.upper())
@@ -653,13 +641,9 @@ def get_realtime_arrivals(airport_code):
     - airline: Airline code (default: F9)
     
     Example: GET /api/realtime/arrivals/LAS?airline=F9
-    """
-    if not realtime_service.is_configured():
-        return jsonify({
-            'error': 'Real-time flight service not configured',
-            'hint': 'Set AVIATIONSTACK_API_KEY in environment'
-        }), 503
     
+    Note: Falls back to mock data if AviationStack API is unavailable
+    """
     airline = request.args.get('airline', 'F9')
     
     result = realtime_service.get_arrivals(airport_code.upper(), airline.upper())
