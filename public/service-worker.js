@@ -1,7 +1,7 @@
 // WildPass Service Worker for PWA functionality
-const CACHE_NAME = 'wildpass-cache-v1';
-const STATIC_CACHE = 'wildpass-static-v1';
-const DYNAMIC_CACHE = 'wildpass-dynamic-v1';
+const CACHE_NAME = 'wildpass-cache-v2';
+const STATIC_CACHE = 'wildpass-static-v2';
+const DYNAMIC_CACHE = 'wildpass-dynamic-v2';
 
 // Files to cache immediately on install
 const STATIC_ASSETS = [
