@@ -158,6 +158,30 @@ def _get_status_display(status):
     return status_map.get(status, status_map['unknown'])
 
 
+# Common ICAO 3-letter to IATA 2-letter airline code mapping
+ICAO_TO_IATA = {
+    'AAL': 'AA', 'DAL': 'DL', 'UAL': 'UA', 'SWA': 'WN', 'FFT': 'F9',
+    'NKS': 'NK', 'JBU': 'B6', 'ASA': 'AS', 'AAY': 'G4', 'HAL': 'HA',
+    'SCX': 'SY', 'BAW': 'BA', 'AFR': 'AF', 'DLH': 'LH', 'ACA': 'AC',
+    'KLM': 'KL', 'EIN': 'EI', 'RYR': 'FR', 'EZY': 'U2', 'VOI': 'VY',
+    'ANA': 'NH', 'JAL': 'JL', 'CPA': 'CX', 'QFA': 'QF', 'UAE': 'EK',
+    'ETH': 'ET', 'THY': 'TK', 'SIA': 'SQ', 'CSN': 'CZ', 'CCA': 'CA',
+}
+
+
+def _icao_to_iata(flight_num):
+    """Convert ICAO airline prefix to IATA if matched (e.g., AAL3075 → AA3075)."""
+    import re
+    match = re.match(r'^([A-Z]{3})(\d+)$', flight_num)
+    if match:
+        icao_code = match.group(1)
+        number = match.group(2)
+        iata = ICAO_TO_IATA.get(icao_code)
+        if iata:
+            return f"{iata}{number}"
+    return flight_num
+
+
 # =============================================================================
 # AeroDataBox Real-Time Flight Service
 # =============================================================================
@@ -194,12 +218,15 @@ class RealTimeFlightService:
         AeroDataBox endpoint: GET /flights/number/{flightNumber}/{date}
 
         Args:
-            flight_number: e.g. 'F9777', 'F91993'
+            flight_number: e.g. 'F9777', 'AA3075', 'AAL3075' (ICAO ok, converted to IATA)
 
         Returns:
             Flight status dict or mock data
         """
-        flight_num = flight_number.replace('-', '').upper()
+        flight_num = flight_number.replace('-', '').replace(' ', '').upper()
+
+        # Convert 3-letter ICAO airline prefix to 2-letter IATA
+        flight_num = _icao_to_iata(flight_num)
 
         if not self.api_key:
             print("⚠️ AeroDataBox API key not configured — using mock data")

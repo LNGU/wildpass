@@ -180,9 +180,10 @@ function RealTimeFlights({ apiBaseUrl }) {
     setFlights([]);
 
     try {
-      // Format flight number (add F9 prefix if not present)
-      let searchNumber = flightNumber.trim().toUpperCase();
-      if (!searchNumber.startsWith('F9')) {
+      // Format flight number
+      let searchNumber = flightNumber.trim().toUpperCase().replace(/\s+/g, '');
+      // Only prepend F9 if the input is purely numeric (e.g., "777" → "F9777")
+      if (/^\d+$/.test(searchNumber)) {
         searchNumber = `F9${searchNumber}`;
       }
 
@@ -219,13 +220,24 @@ function RealTimeFlights({ apiBaseUrl }) {
   }, [fetchFlights]);
 
   const getStatusClass = (status) => {
-    const statusLower = (status || '').toLowerCase();
+    const s = typeof status === 'object' ? (status?.text || '') : (status || '');
+    const statusLower = s.toLowerCase();
     if (statusLower.includes('active') || statusLower.includes('in flight')) return 'status-active';
     if (statusLower.includes('landed')) return 'status-landed';
     if (statusLower.includes('cancelled')) return 'status-cancelled';
     if (statusLower.includes('diverted')) return 'status-diverted';
     if (statusLower.includes('delayed')) return 'status-delayed';
     return 'status-scheduled';
+  };
+
+  // Safely extract display string from status_display (handles both string and legacy object format)
+  const formatStatus = (flight) => {
+    const sd = flight.status_display;
+    if (!sd) return flight.status || 'Unknown';
+    if (typeof sd === 'string') return sd;
+    // Legacy object format: {emoji, text, color}
+    if (sd.text) return `${sd.emoji || ''} ${sd.text}`.trim();
+    return flight.status || 'Unknown';
   };
 
   const renderFlightRow = (flight, index) => {
@@ -268,7 +280,7 @@ function RealTimeFlights({ apiBaseUrl }) {
           
           <div className="status-cell">
             <span className={`status-badge ${getStatusClass(flight.status)}`}>
-              {flight.status_display || flight.status}
+              {formatStatus(flight)}
             </span>
             {isDelay && (
               <span className="delay-badge">{flight.delay}</span>
@@ -290,7 +302,7 @@ function RealTimeFlights({ apiBaseUrl }) {
         <div className="flight-id">
           <span className="big-flight-number">{flight.flight_number}</span>
           <span className={`status-badge large ${getStatusClass(flight.status)}`}>
-            {flight.status_display || flight.status}
+            {formatStatus(flight)}
           </span>
         </div>
         {flight.delay && flight.delay !== 'On time' && (
