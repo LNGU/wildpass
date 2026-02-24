@@ -1,7 +1,7 @@
 // Use environment variable if available, otherwise default to local backend
-const API_BASE_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
-  ? process.env.REACT_APP_API_URL
-  : 'http://localhost:5001/api';
+// NOTE: CRA replaces process.env.REACT_APP_* at build time with string literals.
+// Do NOT wrap in typeof process checks — it prevents the substitution from working.
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 // Log API URL for debugging
 console.log('API Base URL:', API_BASE_URL);
