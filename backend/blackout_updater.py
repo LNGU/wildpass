@@ -159,29 +159,33 @@ def get_fallback_data():
     try:
         from gowild_blackout import GoWildBlackoutDates
         
+        today = datetime.now().strftime('%Y-%m-%d')
+        
         blackout_data = {
             '2026': [],
             '2027': [],
             '2028': []
         }
         
-        # Get all periods from the class
+        # Get all periods from the class, filtering out past periods
         all_periods_2026 = GoWildBlackoutDates.BLACKOUT_PERIODS_2026
         all_periods_2027 = GoWildBlackoutDates.BLACKOUT_PERIODS_2027
         
         for start_date, end_date, description in all_periods_2026:
-            blackout_data['2026'].append({
-                'start': start_date,
-                'end': end_date,
-                'description': description
-            })
+            if end_date >= today:
+                blackout_data['2026'].append({
+                    'start': start_date,
+                    'end': end_date,
+                    'description': description
+                })
         
         for start_date, end_date, description in all_periods_2027:
-            blackout_data['2027'].append({
-                'start': start_date,
-                'end': end_date,
-                'description': description
-            })
+            if end_date >= today:
+                blackout_data['2027'].append({
+                    'start': start_date,
+                    'end': end_date,
+                    'description': description
+                })
         
         return {
             'last_updated': datetime.now().isoformat(),

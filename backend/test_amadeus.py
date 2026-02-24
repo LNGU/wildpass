@@ -4,9 +4,12 @@ Test script for Amadeus API integration
 import os
 from amadeus_api import AmadeusFlightSearch
 
-# Set credentials
-os.environ['AMADEUS_API_KEY'] = 'KvLzPEP6BRhRTEC3AYlNBrCN6LQ4H5j1'
-os.environ['AMADEUS_API_SECRET'] = 'eeFkyyFcdGVFW39m'
+# Use environment variables for credentials (never hardcode API keys!)
+# Set AMADEUS_API_KEY and AMADEUS_API_SECRET in your .env file
+if not os.environ.get('AMADEUS_API_KEY') or not os.environ.get('AMADEUS_API_SECRET'):
+    print("ERROR: Set AMADEUS_API_KEY and AMADEUS_API_SECRET environment variables first.")
+    print("       Copy .env.example to .env and fill in your credentials.")
+    exit(1)
 
 # Initialize client
 print("Initializing Amadeus client...")

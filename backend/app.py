@@ -1,8 +1,7 @@
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
-# from scraper import FrontierScraper  # Commented out - using Amadeus API instead
-from amadeus_api import AmadeusFlightSearch
-from realtime_flights import RealTimeFlightService
+from serpapi_flights import SerpApiFlightSearch
+from aerodatabox_api import RealTimeFlightService
 from trip_planner import find_optimal_trips
 from gowild_blackout import GoWildBlackoutDates
 from blackout_updater import update_if_needed, get_blackout_data
@@ -25,7 +24,7 @@ def index():
     return jsonify({
         'status': 'ok',
         'service': 'WildPass Flight Search API',
-        'version': '1.2.0'  # Added real-time flight status
+        'version': '2.1.0'  # SerpApi Google Flights + AeroDataBox APIs
     })
 
 # Health check at /health for Render
@@ -37,27 +36,22 @@ def health():
 print("🚀 Starting WildPass Backend...")
 update_if_needed()
 
-# Initialize scraper (commented out - using Amadeus API)
-# scraper = FrontierScraper()
-
-# Initialize Amadeus API client
-amadeus_client = None
-AMADEUS_ENABLED = False
+# Initialize SerpApi Google Flights client (flight search — includes Frontier F9)
+flight_client = None
+FLIGHT_API_ENABLED = False
 try:
-    amadeus_client = AmadeusFlightSearch(
-        api_key=os.environ.get('AMADEUS_API_KEY'),
-        api_secret=os.environ.get('AMADEUS_API_SECRET')
+    flight_client = SerpApiFlightSearch(
+        api_key=os.environ.get('SERPAPI_KEY')
     )
-    AMADEUS_ENABLED = True
+    FLIGHT_API_ENABLED = True
 except ValueError as e:
-    print(f"Warning: Amadeus API not configured: {e}")
+    print(f"Warning: SerpApi not configured: {e}")
 
-# Initialize Real-Time Flight Service (AviationStack)
+# Initialize Real-Time Flight Service (AeroDataBox via RapidAPI)
 realtime_service = RealTimeFlightService()
 
-# Development mode - set to True to return mock data instead of scraping
-# If Amadeus is enabled, DEV_MODE defaults to False (use real data)
-DEV_MODE = os.environ.get('DEV_MODE', 'false' if AMADEUS_ENABLED else 'true').lower() == 'true'
+# Development mode — returns mock data when API keys are not configured
+DEV_MODE = os.environ.get('DEV_MODE', 'false' if FLIGHT_API_ENABLED else 'true').lower() == 'true'
 
 # Simple in-memory cache
 cache = {}
@@ -77,60 +71,48 @@ def is_cache_valid(cache_entry):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    amadeus_env = os.environ.get('AMADEUS_ENV', 'test').lower()
     return jsonify({
         'status': 'ok',
         'message': 'Flight Search API is running',
-        'amadeus_enabled': AMADEUS_ENABLED,
-        'amadeus_environment': amadeus_env,
+        'flight_api_enabled': FLIGHT_API_ENABLED,
         'dev_mode': DEV_MODE,
         'realtime_service_enabled': realtime_service.is_configured(),
-        'note': 'Real-time flight status powered by AviationStack'
+        'note': 'Flight search: SerpApi Google Flights | Real-time status: AeroDataBox'
     })
 
-@app.route('/api/debug/amadeus-test', methods=['GET'])
-def amadeus_test():
+@app.route('/api/debug/api-test', methods=['GET'])
+def api_test():
     """
-    Test Amadeus API connection directly
-    This helps diagnose if credentials are working
+    Test SerpApi Google Flights connection directly.
+    Searches DEN->LAX for Frontier flights 30 days out.
     """
-    if not AMADEUS_ENABLED or not amadeus_client:
+    if not FLIGHT_API_ENABLED or not flight_client:
         return jsonify({
             'status': 'error',
-            'message': 'Amadeus not configured',
-            'amadeus_enabled': AMADEUS_ENABLED
+            'message': 'SerpApi not configured',
+            'flight_api_enabled': FLIGHT_API_ENABLED
         }), 503
-    
+
     try:
-        # Try a simple flight search for tomorrow to test API
-        from datetime import datetime, timedelta
         test_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
-        
-        response = amadeus_client.amadeus.shopping.flight_offers_search.get(
-            originLocationCode='DEN',
-            destinationLocationCode='LAX',
-            departureDate=test_date,
+
+        flights = flight_client.search_flights(
+            origins=['DEN'],
+            destinations=['LAX'],
+            departure_date=test_date,
             adults=1,
-            max=3
+            airline_filter='F9'
         )
-        
-        # Extract airlines found
-        airlines = set()
-        for offer in response.data:
-            for itin in offer.get('itineraries', []):
-                for seg in itin.get('segments', []):
-                    airlines.add(seg.get('carrierCode'))
-        
+
         return jsonify({
             'status': 'ok',
-            'message': 'Amadeus API is working',
+            'message': 'SerpApi Google Flights is working',
             'test_date': test_date,
             'route': 'DEN -> LAX',
-            'offers_found': len(response.data),
-            'airlines_found': list(airlines),
-            'sample_price': response.data[0]['price']['total'] if response.data else None
+            'flights_found': len(flights),
+            'sample': flights[0] if flights else None
         })
-        
+
     except Exception as e:
         import traceback
         return jsonify({
@@ -140,21 +122,17 @@ def amadeus_test():
         }), 500
 
 def generate_mock_flights(origins, destinations, departure_date, return_date=None):
-    """Generate mock flight data for development/testing"""
+    """Generate mock flight data for development/testing (snake_case format)"""
     flights = []
 
-    # If destinations is ['ANY'], use a few sample destinations
     dest_list = destinations if destinations != ['ANY'] else ['MCO', 'LAS', 'MIA', 'PHX', 'ATL']
-
-    # Check for blackout dates
     blackout_info = GoWildBlackoutDates.is_flight_affected_by_blackout(departure_date, return_date)
 
     for origin in origins:
-        for destination in dest_list[:5]:  # Limit to 5 destinations
+        for destination in dest_list[:5]:
             if origin == destination:
                 continue
 
-            # Generate 1-2 mock flights per route
             for _ in range(random.randint(1, 2)):
                 hour = random.randint(6, 20)
                 minute = random.choice(['00', '15', '30', '45'])
@@ -165,17 +143,20 @@ def generate_mock_flights(origins, destinations, departure_date, return_date=Non
                 flight = {
                     'origin': origin,
                     'destination': destination,
-                    'departureDate': departure_date,
-                    'departureTime': departure_time,
-                    'arrivalDate': departure_date,
-                    'arrivalTime': f"{(hour + duration_hours) % 24:02d}:{duration_mins:02d} {'AM' if (hour + duration_hours) < 12 else 'PM'}",
+                    'departure_date': departure_date,
+                    'departure_time': departure_time,
+                    'arrival_date': departure_date,
+                    'arrival_time': f"{(hour + duration_hours) % 24:02d}:{duration_mins:02d} {'AM' if (hour + duration_hours) < 12 else 'PM'}",
                     'duration': f"{duration_hours}h {duration_mins}m",
-                    'stops': random.choice([0, 0, 0, 1]),  # Mostly nonstop
+                    'stops': random.choice([0, 0, 0, 1]),
                     'price': round(random.uniform(29, 199), 2),
-                    'seatsRemaining': random.randint(1, 15),
+                    'currency': 'USD',
+                    'seats_remaining': random.randint(1, 15),
                     'airline': 'Frontier Airlines',
-                    'flightNumber': f"F9-{random.randint(1000, 9999)}",
-                    'gowild_eligible': random.choice([True, True, False]),  # Mostly eligible
+                    'flight_number': f"F9{random.randint(1000, 9999)}",
+                    'aircraft': random.choice(['A320', 'A321', 'A319']),
+                    'is_round_trip': False,
+                    'gowild_eligible': random.choice([True, True, False]),
                     'blackout_dates': blackout_info
                 }
                 flights.append(flight)
@@ -223,11 +204,35 @@ def search_flights():
                 'devMode': DEV_MODE
             })
 
-        # Use mock data for flight search (Amadeus doesn't have Frontier F9)
-        # Real-time flight status is available via /api/realtime/* endpoints
-        print(f"[MOCK DATA] Generating flights for {origins} -> {destinations}")
-        flights = generate_mock_flights(origins, destinations, departure_date, return_date)
-        data_source = 'mock'
+        # Use SerpApi Google Flights if configured, otherwise fall back to mock data
+        if FLIGHT_API_ENABLED and flight_client:
+            print(f"[SERPAPI] Searching flights for {origins} -> {destinations}")
+            flights = flight_client.search_flights(
+                origins=origins,
+                destinations=destinations,
+                departure_date=departure_date,
+                return_date=return_date if trip_type == 'round-trip' else None,
+                adults=1,
+                airline_filter='F9'
+            )
+            data_source = 'serpapi'
+
+            # If no Frontier flights, try without airline filter
+            if not flights:
+                print(f"[SERPAPI] No F9 flights found, searching all airlines...")
+                flights = flight_client.search_flights(
+                    origins=origins,
+                    destinations=destinations,
+                    departure_date=departure_date,
+                    return_date=return_date if trip_type == 'round-trip' else None,
+                    adults=1,
+                    airline_filter=None
+                )
+                data_source = 'serpapi_all_airlines'
+        else:
+            print(f"[MOCK DATA] Generating flights for {origins} -> {destinations}")
+            flights = generate_mock_flights(origins, destinations, departure_date, return_date)
+            data_source = 'mock'
 
         # Cache the results
         cache[cache_key] = {
@@ -280,51 +285,79 @@ def search_flights_stream():
             """Generator function for streaming results"""
             all_flights = []
 
-            # Generate mock data and stream it
-            dest_list = destinations if destinations != ['ANY'] else ['MCO', 'LAS', 'MIA', 'PHX', 'ATL']
+            if FLIGHT_API_ENABLED and flight_client:
+                # Use SerpApi — stream results per route
+                dest_list = destinations
+                if destinations == ['ANY']:
+                    dest_list = flight_client._get_popular_destinations(origins)
 
-            # Check for blackout dates
-            blackout_info = GoWildBlackoutDates.is_flight_affected_by_blackout(departure_date, return_date)
+                for origin in origins:
+                    for destination in dest_list:
+                        if origin == destination:
+                            continue
 
-            for origin in origins:
-                for destination in dest_list[:5]:
-                    if origin == destination:
-                        continue
+                        try:
+                            route_flights = flight_client._search_route(
+                                origin, destination, departure_date,
+                                return_date=return_date if trip_type == 'round-trip' else None,
+                                adults=1,
+                                airline_filter='F9'
+                            )
+                        except Exception as e:
+                            print(f"Error searching {origin}->{destination}: {e}")
+                            route_flights = []
 
-                    # Generate mock flights for this route
-                    route_flights = []
-                    for _ in range(random.randint(1, 3)):
-                        hour = random.randint(6, 20)
-                        minute = random.choice(['00', '15', '30', '45'])
-                        flight = {
-                            'origin': origin,
-                            'destination': destination,
-                            'departure_date': departure_date,
-                            'departure_time': f"{hour:02d}:{minute}",
-                            'arrival_time': f"{(hour+3):02d}:{minute}",
-                            'duration': '3h 0m',
-                            'price': round(random.uniform(29, 199), 2),
-                            'currency': 'USD',
-                            'airline': 'Frontier Airlines',
-                            'flight_number': f"F9-{random.randint(1000, 9999)}",
-                            'stops': 0,
-                            'aircraft': '320',
-                            'booking_class': 'Economy',
-                            'gowild_eligible': random.choice([True, True, False]),
-                            'blackout_dates': blackout_info
+                        if route_flights:
+                            all_flights.extend(route_flights)
+                            event_data = {
+                                'route': f"{origin}->{destination}",
+                                'flights': route_flights,
+                                'count': len(route_flights)
+                            }
+                            yield f"data: {json.dumps(event_data)}\n\n"
+                        time.sleep(0.1)
+            else:
+                # Fallback to mock data
+                dest_list = destinations if destinations != ['ANY'] else ['MCO', 'LAS', 'MIA', 'PHX', 'ATL']
+                blackout_info = GoWildBlackoutDates.is_flight_affected_by_blackout(departure_date, return_date)
+
+                for origin in origins:
+                    for destination in dest_list[:5]:
+                        if origin == destination:
+                            continue
+
+                        route_flights = []
+                        for _ in range(random.randint(1, 3)):
+                            hour = random.randint(6, 20)
+                            minute = random.choice(['00', '15', '30', '45'])
+                            flight = {
+                                'origin': origin,
+                                'destination': destination,
+                                'departure_date': departure_date,
+                                'departure_time': f"{hour:02d}:{minute} {'AM' if hour < 12 else 'PM'}",
+                                'arrival_date': departure_date,
+                                'arrival_time': f"{(hour+3):02d}:{minute} {'AM' if (hour+3) < 12 else 'PM'}",
+                                'duration': '3h 0m',
+                                'price': round(random.uniform(29, 199), 2),
+                                'currency': 'USD',
+                                'airline': 'Frontier Airlines',
+                                'flight_number': f"F9{random.randint(1000, 9999)}",
+                                'stops': 0,
+                                'aircraft': 'A320',
+                                'is_round_trip': False,
+                                'gowild_eligible': random.choice([True, True, False]),
+                                'blackout_dates': blackout_info
+                            }
+                            route_flights.append(flight)
+
+                        all_flights.extend(route_flights)
+                        event_data = {
+                            'route': f"{origin}->{destination}",
+                            'flights': route_flights,
+                            'count': len(route_flights)
                         }
-                        route_flights.append(flight)
-
-                    all_flights.extend(route_flights)
-
-                    # Stream this route's results
-                    event_data = {
-                        'route': f"{origin}->{destination}",
-                        'flights': route_flights,
-                        'count': len(route_flights)
-                    }
-                    yield f"data: {json.dumps(event_data)}\n\n"
-                    time.sleep(0.1)  # Simulate API delay
+                        yield f"data: {json.dumps(event_data)}\n\n"
+                        time.sleep(0.1)
 
             # Send completion event
             completion_data = {
@@ -349,13 +382,38 @@ def search_flights_stream():
 
 @app.route('/api/destinations', methods=['GET'])
 def get_destinations():
-    """Get list of all Frontier destinations"""
-    # Scraper not available - return empty list or implement Amadeus destination search
-    destinations = []
+    """Get list of all Frontier Airlines destinations"""
+    if FLIGHT_API_ENABLED and flight_client:
+        try:
+            destinations = flight_client.get_frontier_destinations()
+            return jsonify({
+                'destinations': destinations,
+                'count': len(destinations),
+                'source': 'serpapi'
+            })
+        except Exception as e:
+            print(f"Error fetching destinations: {e}")
+
+    # Fallback: hardcoded Frontier destinations
+    destinations = [
+        {'code': code, 'city': city, 'country': 'US'}
+        for code, city in SerpApiFlightSearch.AIRPORT_CITIES.items()
+    ] if FLIGHT_API_ENABLED else [
+        {'code': 'DEN', 'city': 'Denver', 'country': 'US'},
+        {'code': 'LAS', 'city': 'Las Vegas', 'country': 'US'},
+        {'code': 'PHX', 'city': 'Phoenix', 'country': 'US'},
+        {'code': 'LAX', 'city': 'Los Angeles', 'country': 'US'},
+        {'code': 'MCO', 'city': 'Orlando', 'country': 'US'},
+        {'code': 'MIA', 'city': 'Miami', 'country': 'US'},
+        {'code': 'ATL', 'city': 'Atlanta', 'country': 'US'},
+        {'code': 'ORD', 'city': 'Chicago', 'country': 'US'},
+        {'code': 'DFW', 'city': 'Dallas', 'country': 'US'},
+        {'code': 'SEA', 'city': 'Seattle', 'country': 'US'},
+    ]
     return jsonify({
         'destinations': destinations,
         'count': len(destinations),
-        'message': 'Destination search not implemented with Amadeus API'
+        'source': 'hardcoded'
     })
 
 @app.route('/api/trip-planner', methods=['POST'])
@@ -412,13 +470,14 @@ def trip_planner():
             # Search for round trips with each return date
             batch_flights = []
             for return_date in return_dates:
-                if AMADEUS_ENABLED:
-                    flights = amadeus_client.search_flights(
+                if FLIGHT_API_ENABLED and flight_client:
+                    flights = flight_client.search_flights(
                         origins=origins,
                         destinations=destinations,
                         departure_date=current_departure_date,
                         return_date=return_date,
-                        adults=1
+                        adults=1,
+                        airline_filter='F9'
                     )
                     batch_flights.extend(flights)
 
@@ -484,70 +543,53 @@ def debug_search():
         data = request.get_json()
         debug_info = {
             'request_received': data,
-            'amadeus_enabled': AMADEUS_ENABLED,
+            'flight_api_enabled': FLIGHT_API_ENABLED,
             'dev_mode': DEV_MODE,
-            'amadeus_client_status': 'initialized' if amadeus_client else 'not initialized',
+            'flight_client_status': 'initialized' if flight_client else 'not initialized',
+            'realtime_configured': realtime_service.is_configured(),
             'steps': [],
             'flights': [],
             'errors': []
         }
-        
+
         origins = data.get('origins', [])
         destinations = data.get('destinations', [])
         departure_date = data.get('departureDate')
-        return_date = data.get('returnDate')
-        
+
         debug_info['steps'].append(f"Searching {origins} -> {destinations} on {departure_date}")
-        
-        if AMADEUS_ENABLED and amadeus_client:
+
+        if FLIGHT_API_ENABLED and flight_client:
             try:
-                # Try searching without Frontier filter to see all available flights
-                from amadeus import ResponseError
-                for origin in origins[:1]:  # Just test first origin
-                    for destination in destinations[:1]:  # Just test first destination
-                        try:
-                            # Search without airline filter first
-                            response = amadeus_client.amadeus.shopping.flight_offers_search.get(
-                                originLocationCode=origin,
-                                destinationLocationCode=destination,
-                                departureDate=departure_date,
-                                adults=1,
-                                max=5  # Just get a few for debug
-                            )
-                            debug_info['steps'].append(f"Raw Amadeus response: {len(response.data)} offers found (no filter)")
-                            
-                            # Show what airlines are available
-                            airlines_found = set()
-                            for offer in response.data:
-                                for itin in offer.get('itineraries', []):
-                                    for seg in itin.get('segments', []):
-                                        airlines_found.add(seg.get('carrierCode'))
-                            debug_info['airlines_available'] = list(airlines_found)
-                            
-                            # Now try with Frontier filter
-                            try:
-                                response_f9 = amadeus_client.amadeus.shopping.flight_offers_search.get(
-                                    originLocationCode=origin,
-                                    destinationLocationCode=destination,
-                                    departureDate=departure_date,
-                                    adults=1,
-                                    max=5,
-                                    includedAirlineCodes='F9'
-                                )
-                                debug_info['steps'].append(f"Frontier-filtered results: {len(response_f9.data)} offers")
-                                debug_info['frontier_flights_raw'] = len(response_f9.data)
-                            except ResponseError as e:
-                                debug_info['errors'].append(f"Frontier filter error: {str(e)}")
-                            
-                        except ResponseError as e:
-                            debug_info['errors'].append(f"Amadeus API error for {origin}->{destination}: {str(e)}")
+                for origin in origins[:1]:
+                    for destination in destinations[:1]:
+                        # Search Frontier flights
+                        flights_f9 = flight_client.search_flights(
+                            origins=[origin],
+                            destinations=[destination],
+                            departure_date=departure_date,
+                            airline_filter='F9'
+                        )
+                        debug_info['steps'].append(f"Frontier (F9) results: {len(flights_f9)} flights")
+                        debug_info['flights'] = flights_f9[:3]
+
+                        # Also search all airlines for comparison
+                        flights_all = flight_client.search_flights(
+                            origins=[origin],
+                            destinations=[destination],
+                            departure_date=departure_date,
+                            airline_filter=None
+                        )
+                        debug_info['steps'].append(f"All airlines results: {len(flights_all)} flights")
+                        airlines = list(set(f.get('airline', 'Unknown') for f in flights_all))
+                        debug_info['airlines_available'] = airlines
+
             except Exception as e:
-                debug_info['errors'].append(f"Amadeus search exception: {str(e)}")
+                debug_info['errors'].append(f"SerpApi search exception: {str(e)}")
         else:
-            debug_info['steps'].append("Amadeus not enabled, would use mock data in dev mode")
-            
+            debug_info['steps'].append("SerpApi not enabled, would use mock data")
+
         return jsonify(debug_info)
-        
+
     except Exception as e:
         import traceback
         return jsonify({
@@ -556,7 +598,7 @@ def debug_search():
         }), 500
 
 # =============================================================================
-# REAL-TIME FLIGHT STATUS ENDPOINTS (powered by AviationStack)
+# REAL-TIME FLIGHT STATUS ENDPOINTS (powered by AeroDataBox)
 # =============================================================================
 
 @app.route('/api/realtime/flight/<flight_number>', methods=['GET'])
@@ -572,14 +614,14 @@ def get_realtime_flight_status(flight_number):
     - Delays
     - Gate and terminal information
     
-    Note: Falls back to mock data if AviationStack API is unavailable
+    Note: Falls back to mock data if AeroDataBox API is unavailable
     """
     result = realtime_service.get_flight_status(flight_number)
     
     if 'error' in result:
         return jsonify(result), 404
     
-    return jsonify(result)
+    return jsonify({'flight': result})
 
 @app.route('/api/realtime/route', methods=['GET'])
 def get_realtime_route_flights():
@@ -593,7 +635,7 @@ def get_realtime_route_flights():
     
     Example: GET /api/realtime/route?origin=DEN&destination=LAS&airline=F9
     
-    Note: Falls back to mock data if AviationStack API is unavailable
+    Note: Falls back to mock data if AeroDataBox API is unavailable
     """
     origin = request.args.get('origin')
     destination = request.args.get('destination')
@@ -621,7 +663,7 @@ def get_realtime_departures(airport_code):
     
     Example: GET /api/realtime/departures/DEN?airline=F9
     
-    Note: Falls back to mock data if AviationStack API is unavailable
+    Note: Falls back to mock data if AeroDataBox API is unavailable
     """
     airline = request.args.get('airline', 'F9')
     
@@ -642,7 +684,7 @@ def get_realtime_arrivals(airport_code):
     
     Example: GET /api/realtime/arrivals/LAS?airline=F9
     
-    Note: Falls back to mock data if AviationStack API is unavailable
+    Note: Falls back to mock data if AeroDataBox API is unavailable
     """
     airline = request.args.get('airline', 'F9')
     
@@ -688,5 +730,5 @@ if __name__ == '__main__':
     # Run on port 5001 locally (5000 is often used by macOS AirPlay)
     # In production, PORT is set by the hosting platform
     port = int(os.environ.get('PORT', 5001))
-    debug = os.environ.get('FLASK_DEBUG', 'true').lower() == 'true'
+    debug = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
     app.run(debug=debug, port=port, host='0.0.0.0')

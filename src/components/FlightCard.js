@@ -10,9 +10,9 @@ function FlightCard({ flight, buildYourOwnMode = false, buildYourOwnStep = 'outb
     if (!flight.is_round_trip || !flight.return_flight) return null;
 
     const outboundDepart = new Date(`${flight.departure_date} ${flight.departure_time}`);
-    const outboundArrive = new Date(`${flight.arrival_date || flight.arrivalDate} ${flight.arrival_time || flight.arrivalTime}`);
+    const outboundArrive = new Date(`${flight.arrival_date} ${flight.arrival_time}`);
     const returnDepart = new Date(`${flight.return_flight.departure_date} ${flight.return_flight.departure_time}`);
-    const returnArrive = new Date(`${flight.return_flight.arrival_date || flight.return_flight.arrivalDate} ${flight.return_flight.arrival_time || flight.return_flight.arrivalTime}`);
+    const returnArrive = new Date(`${flight.return_flight.arrival_date} ${flight.return_flight.arrival_time}`);
 
     // Total trip duration (from initial departure to final arrival)
     const totalTripMs = returnArrive - outboundDepart;
@@ -43,11 +43,11 @@ function FlightCard({ flight, buildYourOwnMode = false, buildYourOwnStep = 'outb
       <div className="flight-details">
         <div className="detail-row">
           <span className="label">Departure:</span>
-          <span className="value">{flightData.departure_date || flightData.departureDate} at {flightData.departure_time || flightData.departureTime}</span>
+          <span className="value">{flightData.departure_date} at {flightData.departure_time}</span>
         </div>
         <div className="detail-row">
           <span className="label">Arrival:</span>
-          <span className="value">{flightData.arrival_date || flightData.arrivalDate} at {flightData.arrival_time || flightData.arrivalTime}</span>
+          <span className="value">{flightData.arrival_date} at {flightData.arrival_time}</span>
         </div>
         <div className="detail-row">
           <span className="label">Duration:</span>
@@ -61,7 +61,7 @@ function FlightCard({ flight, buildYourOwnMode = false, buildYourOwnStep = 'outb
         )}
         <div className="detail-row">
           <span className="label">Flight:</span>
-          <span className="value">{flightData.airline || flight.airline} {flightData.flight_number || flightData.flightNumber}</span>
+          <span className="value">{flightData.airline || flight.airline} {flightData.flight_number}</span>
         </div>
       </div>
     </div>

@@ -1,10 +1,10 @@
-// Use environment variable if available, otherwise default to production API
+// Use environment variable if available, otherwise default to local backend
 const API_BASE_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
   ? process.env.REACT_APP_API_URL
-  : 'https://wildpass-api.onrender.com/api';
+  : 'http://localhost:5001/api';
 
 // Log API URL for debugging
-console.log('🔗 API Base URL:', API_BASE_URL);
+console.log('API Base URL:', API_BASE_URL);
 
 // Export base URL for components that need it
 export const getApiBaseUrl = () => API_BASE_URL;
@@ -101,9 +101,18 @@ class CacheManager {
 
 // API functions
 
+// Track active streaming search to abort on new search
+let activeSearchController = null;
+
 // Streaming search with EventSource (Server-Sent Events)
 export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onError, onFallbackNotice) => {
   const { origins, destinations, tripType, departureDate, returnDate } = searchParams;
+
+  // Abort any in-progress search
+  if (activeSearchController) {
+    activeSearchController.abort();
+    activeSearchController = null;
+  }
 
   // Check cache first
   const cacheKey = CacheManager.getCacheKey(origins, destinations, tripType, departureDate, returnDate);
@@ -114,7 +123,6 @@ export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onEr
 
   if (cachedData) {
     console.log('✅ Returning cached flight data');
-    // Return cached data immediately
     if (cachedData.flights) {
       onFlights(cachedData.flights);
     }
@@ -126,6 +134,10 @@ export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onEr
 
   console.log('🌐 Fetching fresh data from API');
 
+  // Create AbortController for this search
+  const controller = new AbortController();
+  activeSearchController = controller;
+
   // Use fetch with stream for SSE
   fetch(`${API_BASE_URL}/search/stream`, {
     method: 'POST',
@@ -133,6 +145,7 @@ export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onEr
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(searchParams),
+    signal: controller.signal,
   })
     .then(response => {
       if (!response.ok) {
@@ -208,6 +221,11 @@ export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onEr
       return reader.read().then(processText);
     })
     .catch(error => {
+      // Don't report abort errors (user started a new search)
+      if (error.name === 'AbortError') {
+        console.log('Search aborted (new search started)');
+        return;
+      }
       console.error('Error in streaming search:', error);
       if (onError) {
         onError(error);

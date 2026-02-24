@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import SearchForm from './components/SearchForm';
 import FlightResults from './components/FlightResults';
-import { searchFlightsStreaming, clearLocalCache, planTrip, healthCheck } from './services/api';
+import RealTimeFlights from './components/RealTimeFlights';
+import { searchFlightsStreaming, clearLocalCache, planTrip, healthCheck, getApiBaseUrl } from './services/api';
 
 function App() {
   const [searchParams, setSearchParams] = useState(null);
@@ -16,6 +17,7 @@ function App() {
   const [statusMessage, setStatusMessage] = useState('');
   const [backendStatus, setBackendStatus] = useState({ status: 'checking', message: 'Checking backend...' });
   const [fallbackNotice, setFallbackNotice] = useState(null);
+  const [activeTab, setActiveTab] = useState('search'); // 'search' or 'realtime'
 
   // Check backend health on mount
   useEffect(() => {
@@ -50,7 +52,7 @@ function App() {
     setReturnFlights([]);
 
     // Use desired return date if specified, otherwise use outbound arrival date
-    const returnDepartureDate = searchParams.desiredReturnDate || (flight.arrival_date || flight.arrivalDate);
+    const returnDepartureDate = searchParams.desiredReturnDate || flight.arrival_date;
 
     // Automatically search for return flights
     // Search from destination back to origin
@@ -180,7 +182,21 @@ function App() {
       <header className="header">
         <div className="container">
           <h1>WildPass</h1>
-          <p className="tagline">Find the best flight deals across multiple destinations</p>
+          <p className="tagline">Find the best Frontier Airlines flight deals</p>
+          <div className="nav-tabs">
+            <button
+              className={`nav-tab ${activeTab === 'search' ? 'active' : ''}`}
+              onClick={() => setActiveTab('search')}
+            >
+              ✈️ Flight Search
+            </button>
+            <button
+              className={`nav-tab ${activeTab === 'realtime' ? 'active' : ''}`}
+              onClick={() => setActiveTab('realtime')}
+            >
+              📱 Live Flights
+            </button>
+          </div>
           <div className={`backend-status ${backendStatus.status}`}>
             <span className="status-dot"></span>
             <span className="status-text">{backendStatus.message}</span>
@@ -190,7 +206,9 @@ function App() {
 
       <main className="main">
         <div className="container">
-          <SearchForm onSearch={handleSearch} loading={loading} />
+          {activeTab === 'search' ? (
+            <>
+              <SearchForm onSearch={handleSearch} loading={loading} />
           {error && (
             <div className="error-message">
               <p>⚠️ {error}</p>
@@ -209,7 +227,7 @@ function App() {
               {flights.length > 0 && (
                 <p className="flights-found">{flights.length} flights found so far</p>
               )}
-              <p className="api-hint">Connecting to: wildpass-api.onrender.com</p>
+              <p className="api-hint">Searching for Frontier flights...</p>
             </div>
           )}
           {searchParams && flights.length > 0 && (
@@ -227,12 +245,16 @@ function App() {
               onResetBuildYourOwn={handleResetBuildYourOwn}
             />
           )}
+            </>
+          ) : (
+            <RealTimeFlights apiBaseUrl={getApiBaseUrl()} />
+          )}
         </div>
       </main>
 
       <footer className="footer">
         <div className="container">
-          <p>&copy; 2025 WildPass. Flight data will be scraped from Frontier Airlines.</p>
+          <p>&copy; 2026 WildPass. Flight data powered by Google Flights (SerpApi) &amp; AeroDataBox APIs.</p>
           <button
             className="clear-cache-btn"
             onClick={() => {

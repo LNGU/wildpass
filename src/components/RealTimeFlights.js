@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './RealTimeFlights.css';
 
 function RealTimeFlights({ apiBaseUrl }) {
@@ -11,112 +11,109 @@ function RealTimeFlights({ apiBaseUrl }) {
   const [flightNumber, setFlightNumber] = useState('');
   const [singleFlight, setSingleFlight] = useState(null);
   const [airportFilter, setAirportFilter] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+  const fetchIdRef = useRef(0); // track latest fetch to ignore stale responses
 
-  // All Frontier (F9) destinations - comprehensive list
+  // All Frontier (F9) destinations - alphabetized by city name
   const allAirports = [
-    // Major Hubs
-    { code: 'DEN', name: 'Denver (Hub)', hub: true },
-    { code: 'LAS', name: 'Las Vegas', hub: true },
-    { code: 'PHX', name: 'Phoenix', hub: true },
-    { code: 'MCO', name: 'Orlando', hub: true },
+    { code: 'ABQ', name: 'Albuquerque' },
+    { code: 'ALB', name: 'Albany' },
+    { code: 'ANC', name: 'Anchorage' },
     { code: 'ATL', name: 'Atlanta', hub: true },
-    // Focus Cities
-    { code: 'ORD', name: 'Chicago O\'Hare' },
-    { code: 'DFW', name: 'Dallas/Fort Worth' },
-    { code: 'MIA', name: 'Miami' },
-    { code: 'FLL', name: 'Fort Lauderdale' },
-    { code: 'TPA', name: 'Tampa' },
-    { code: 'MSP', name: 'Minneapolis' },
-    { code: 'DTW', name: 'Detroit' },
-    { code: 'PHL', name: 'Philadelphia' },
-    { code: 'CLT', name: 'Charlotte' },
-    { code: 'RDU', name: 'Raleigh-Durham' },
-    { code: 'BNA', name: 'Nashville' },
     { code: 'AUS', name: 'Austin' },
-    { code: 'SAT', name: 'San Antonio' },
+    { code: 'BWI', name: 'Baltimore' },
+    { code: 'BHM', name: 'Birmingham' },
+    { code: 'BOI', name: 'Boise' },
+    { code: 'BOS', name: 'Boston' },
+    { code: 'BUF', name: 'Buffalo' },
+    { code: 'BUR', name: 'Burbank' },
+    { code: 'CUN', name: 'Cancun' },
+    { code: 'CHS', name: 'Charleston' },
+    { code: 'CLT', name: 'Charlotte' },
+    { code: 'ORD', name: 'Chicago O\'Hare' },
+    { code: 'MDW', name: 'Chicago Midway' },
+    { code: 'CVG', name: 'Cincinnati' },
+    { code: 'CLE', name: 'Cleveland' },
+    { code: 'COS', name: 'Colorado Springs' },
+    { code: 'CMH', name: 'Columbus' },
+    { code: 'DFW', name: 'Dallas/Fort Worth' },
+    { code: 'DAL', name: 'Dallas Love Field' },
+    { code: 'DEN', name: 'Denver (Hub)', hub: true },
+    { code: 'DSM', name: 'Des Moines' },
+    { code: 'DTW', name: 'Detroit' },
+    { code: 'ELP', name: 'El Paso' },
+    { code: 'FNT', name: 'Flint' },
+    { code: 'FLL', name: 'Fort Lauderdale' },
+    { code: 'RSW', name: 'Fort Myers' },
+    { code: 'GDL', name: 'Guadalajara' },
+    { code: 'GRR', name: 'Grand Rapids' },
+    { code: 'GSP', name: 'Greenville SC' },
+    { code: 'BDL', name: 'Hartford' },
+    { code: 'HNL', name: 'Honolulu' },
     { code: 'IAH', name: 'Houston Intercontinental' },
     { code: 'HOU', name: 'Houston Hobby' },
-    { code: 'DAL', name: 'Dallas Love Field' },
-    { code: 'SLC', name: 'Salt Lake City' },
-    { code: 'SEA', name: 'Seattle' },
-    { code: 'PDX', name: 'Portland' },
-    { code: 'SFO', name: 'San Francisco' },
-    { code: 'OAK', name: 'Oakland' },
-    { code: 'SJC', name: 'San Jose' },
-    { code: 'LAX', name: 'Los Angeles' },
-    { code: 'SAN', name: 'San Diego' },
-    { code: 'ONT', name: 'Ontario CA' },
-    { code: 'SMF', name: 'Sacramento' },
-    { code: 'BUR', name: 'Burbank' },
-    { code: 'SNA', name: 'Orange County' },
-    { code: 'PSP', name: 'Palm Springs' },
-    { code: 'ABQ', name: 'Albuquerque' },
-    { code: 'ELP', name: 'El Paso' },
-    { code: 'TUS', name: 'Tucson' },
-    { code: 'BOI', name: 'Boise' },
-    { code: 'COS', name: 'Colorado Springs' },
-    // East Coast
-    { code: 'JFK', name: 'New York JFK' },
-    { code: 'LGA', name: 'New York LaGuardia' },
-    { code: 'EWR', name: 'Newark' },
-    { code: 'BOS', name: 'Boston' },
-    { code: 'DCA', name: 'Washington Reagan' },
-    { code: 'IAD', name: 'Washington Dulles' },
-    { code: 'BWI', name: 'Baltimore' },
-    { code: 'PIT', name: 'Pittsburgh' },
-    { code: 'CLE', name: 'Cleveland' },
-    { code: 'CMH', name: 'Columbus' },
-    { code: 'CVG', name: 'Cincinnati' },
+    { code: 'HSV', name: 'Huntsville' },
     { code: 'IND', name: 'Indianapolis' },
-    { code: 'MCI', name: 'Kansas City' },
-    { code: 'STL', name: 'St. Louis' },
-    { code: 'MKE', name: 'Milwaukee' },
-    { code: 'MDW', name: 'Chicago Midway' },
-    // Florida
     { code: 'JAX', name: 'Jacksonville' },
-    { code: 'RSW', name: 'Fort Myers' },
-    { code: 'PBI', name: 'West Palm Beach' },
-    { code: 'SRQ', name: 'Sarasota' },
-    { code: 'PNS', name: 'Pensacola' },
-    // Caribbean & Mexico
-    { code: 'SJU', name: 'San Juan PR' },
-    { code: 'CUN', name: 'Cancun' },
-    { code: 'PVR', name: 'Puerto Vallarta' },
-    { code: 'SJD', name: 'Los Cabos' },
-    { code: 'GDL', name: 'Guadalajara' },
-    { code: 'MBJ', name: 'Montego Bay' },
-    { code: 'PUJ', name: 'Punta Cana' },
-    { code: 'NAS', name: 'Nassau' },
-    // Other
-    { code: 'ANC', name: 'Anchorage' },
-    { code: 'HNL', name: 'Honolulu' },
-    { code: 'OGG', name: 'Maui' },
+    { code: 'MCI', name: 'Kansas City' },
     { code: 'LIH', name: 'Kauai' },
     { code: 'KOA', name: 'Kona' },
-    { code: 'MSY', name: 'New Orleans' },
-    { code: 'MEM', name: 'Memphis' },
-    { code: 'OKC', name: 'Oklahoma City' },
-    { code: 'TUL', name: 'Tulsa' },
-    { code: 'OMA', name: 'Omaha' },
-    { code: 'DSM', name: 'Des Moines' },
-    { code: 'ICT', name: 'Wichita' },
+    { code: 'LAS', name: 'Las Vegas', hub: true },
     { code: 'LIT', name: 'Little Rock' },
-    { code: 'BHM', name: 'Birmingham' },
-    { code: 'HSV', name: 'Huntsville' },
-    { code: 'GSP', name: 'Greenville SC' },
-    { code: 'CHS', name: 'Charleston' },
-    { code: 'SAV', name: 'Savannah' },
+    { code: 'LAX', name: 'Los Angeles' },
+    { code: 'SJD', name: 'Los Cabos' },
+    { code: 'OGG', name: 'Maui' },
+    { code: 'MEM', name: 'Memphis' },
+    { code: 'MIA', name: 'Miami' },
+    { code: 'MKE', name: 'Milwaukee' },
+    { code: 'MSP', name: 'Minneapolis' },
+    { code: 'MBJ', name: 'Montego Bay' },
     { code: 'MYR', name: 'Myrtle Beach' },
+    { code: 'BNA', name: 'Nashville' },
+    { code: 'NAS', name: 'Nassau' },
+    { code: 'EWR', name: 'Newark' },
+    { code: 'MSY', name: 'New Orleans' },
+    { code: 'JFK', name: 'New York JFK' },
+    { code: 'LGA', name: 'New York LaGuardia' },
     { code: 'ORF', name: 'Norfolk' },
-    { code: 'RIC', name: 'Richmond' },
-    { code: 'BDL', name: 'Hartford' },
+    { code: 'OAK', name: 'Oakland' },
+    { code: 'OKC', name: 'Oklahoma City' },
+    { code: 'OMA', name: 'Omaha' },
+    { code: 'ONT', name: 'Ontario CA' },
+    { code: 'SNA', name: 'Orange County' },
+    { code: 'MCO', name: 'Orlando', hub: true },
+    { code: 'PSP', name: 'Palm Springs' },
+    { code: 'PNS', name: 'Pensacola' },
+    { code: 'PHL', name: 'Philadelphia' },
+    { code: 'PHX', name: 'Phoenix', hub: true },
+    { code: 'PIT', name: 'Pittsburgh' },
+    { code: 'PDX', name: 'Portland' },
     { code: 'PVD', name: 'Providence' },
-    { code: 'ALB', name: 'Albany' },
-    { code: 'BUF', name: 'Buffalo' },
+    { code: 'PVR', name: 'Puerto Vallarta' },
+    { code: 'PUJ', name: 'Punta Cana' },
+    { code: 'RDU', name: 'Raleigh-Durham' },
+    { code: 'RIC', name: 'Richmond' },
     { code: 'ROC', name: 'Rochester' },
+    { code: 'SMF', name: 'Sacramento' },
+    { code: 'SLC', name: 'Salt Lake City' },
+    { code: 'SAT', name: 'San Antonio' },
+    { code: 'SAN', name: 'San Diego' },
+    { code: 'SFO', name: 'San Francisco' },
+    { code: 'SJC', name: 'San Jose' },
+    { code: 'SJU', name: 'San Juan PR' },
+    { code: 'SRQ', name: 'Sarasota' },
+    { code: 'SAV', name: 'Savannah' },
+    { code: 'SEA', name: 'Seattle' },
+    { code: 'STL', name: 'St. Louis' },
     { code: 'SYR', name: 'Syracuse' },
-    { code: 'GRR', name: 'Grand Rapids' },
-    { code: 'FNT', name: 'Flint' },
+    { code: 'TPA', name: 'Tampa' },
+    { code: 'TUS', name: 'Tucson' },
+    { code: 'TUL', name: 'Tulsa' },
+    { code: 'DCA', name: 'Washington Reagan' },
+    { code: 'IAD', name: 'Washington Dulles' },
+    { code: 'PBI', name: 'West Palm Beach' },
+    { code: 'ICT', name: 'Wichita' },
   ];
 
   // Filter airports based on search
@@ -128,6 +125,7 @@ function RealTimeFlights({ apiBaseUrl }) {
     : allAirports;
 
   const fetchFlights = useCallback(async () => {
+    const thisId = ++fetchIdRef.current; // increment to invalidate any in-flight request
     setLoading(true);
     setError(null);
     setSingleFlight(null);
@@ -139,21 +137,40 @@ function RealTimeFlights({ apiBaseUrl }) {
       
       const response = await fetch(endpoint);
       
+      // Ignore stale responses if airport/viewMode changed while fetching
+      if (thisId !== fetchIdRef.current) return;
+
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
       
       const data = await response.json();
+      if (thisId !== fetchIdRef.current) return;
+
       setFlights(data.flights || []);
       setLastUpdated(new Date());
     } catch (err) {
+      if (thisId !== fetchIdRef.current) return;
       console.error('Error fetching real-time flights:', err);
       setError(err.message || 'Failed to fetch flight data');
       setFlights([]);
     } finally {
-      setLoading(false);
+      if (thisId === fetchIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [airport, viewMode, apiBaseUrl]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const searchFlight = async () => {
     if (!flightNumber.trim()) return;
@@ -176,8 +193,12 @@ function RealTimeFlights({ apiBaseUrl }) {
       }
       
       const data = await response.json();
-      if (data.flight) {
-        setSingleFlight(data.flight);
+      // Backend wraps in {flight: ...}, but handle direct response too
+      const flightData = data.flight || (data.flight_number ? data : null);
+      if (flightData) {
+        setSingleFlight(flightData);
+      } else if (data.error) {
+        setError(data.error);
       } else {
         setError('Flight not found');
       }
@@ -340,7 +361,7 @@ function RealTimeFlights({ apiBaseUrl }) {
     <div className="realtime-flights-container">
       <div className="realtime-header">
         <h2>✈️ Real-Time Frontier Flights</h2>
-        <p className="realtime-subtitle">Live flight status powered by AviationStack</p>
+        <p className="realtime-subtitle">Live flight status powered by AeroDataBox</p>
       </div>
       
       <div className="realtime-controls">
@@ -350,7 +371,7 @@ function RealTimeFlights({ apiBaseUrl }) {
             placeholder="Flight # (e.g., 1234 or F91234)"
             value={flightNumber}
             onChange={(e) => setFlightNumber(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && searchFlight()}
+            onKeyDown={(e) => e.key === 'Enter' && searchFlight()}
             className="flight-search-input"
           />
           <button onClick={searchFlight} className="search-flight-btn">
@@ -363,28 +384,48 @@ function RealTimeFlights({ apiBaseUrl }) {
         <div className="board-controls">
           <div className="airport-selector">
             <label>Airport:</label>
-            <div className="airport-select-wrapper">
-              <input
-                type="text"
-                placeholder="Search airports..."
-                value={airportFilter}
-                onChange={(e) => setAirportFilter(e.target.value)}
-                className="airport-filter-input"
-              />
-              <select 
-                value={airport} 
-                onChange={(e) => { setAirport(e.target.value); setAirportFilter(''); }}
-                className="airport-select"
-                size={airportFilter ? Math.min(filteredAirports.length, 8) : 1}
+            <div className="airport-select-wrapper" ref={dropdownRef}>
+              <button
+                type="button"
+                className="airport-select-button"
+                onClick={() => setShowDropdown(!showDropdown)}
               >
-                {(airportFilter ? filteredAirports : allAirports).map(apt => (
-                  <option key={apt.code} value={apt.code}>
-                    {apt.code} - {apt.name}{apt.hub ? ' ⭐' : ''}
-                  </option>
-                ))}
-              </select>
+                {airport} - {allAirports.find(a => a.code === airport)?.name || airport}
+                <span className="dropdown-arrow">{showDropdown ? '▲' : '▼'}</span>
+              </button>
+              {showDropdown && (
+                <div className="airport-dropdown">
+                  <input
+                    type="text"
+                    placeholder="Search airports..."
+                    value={airportFilter}
+                    onChange={(e) => setAirportFilter(e.target.value)}
+                    className="airport-filter-input"
+                    autoFocus
+                  />
+                  <ul className="airport-list">
+                    {filteredAirports.map(apt => (
+                      <li
+                        key={apt.code}
+                        className={`airport-option ${apt.code === airport ? 'selected' : ''} ${apt.hub ? 'hub' : ''}`}
+                        onClick={() => {
+                          setAirport(apt.code);
+                          setAirportFilter('');
+                          setShowDropdown(false);
+                        }}
+                      >
+                        <span className="airport-code-label">{apt.code}</span>
+                        <span className="airport-name-label">{apt.name}</span>
+                        {apt.hub && <span className="hub-star">⭐</span>}
+                      </li>
+                    ))}
+                    {filteredAirports.length === 0 && (
+                      <li className="airport-option no-match">No airports match</li>
+                    )}
+                  </ul>
+                </div>
+              )}
             </div>
-            <span className="selected-airport">{airport}</span>
           </div>
           
           <div className="view-toggle">
@@ -451,7 +492,7 @@ function RealTimeFlights({ apiBaseUrl }) {
       )}
       
       <div className="realtime-footer">
-        <span className="api-note">🎫 Free tier: 100 requests/month • Real-time data only</span>
+        <span className="api-note">🎫 Free tier: 300 requests/month • Real-time data via AeroDataBox</span>
       </div>
     </div>
   );

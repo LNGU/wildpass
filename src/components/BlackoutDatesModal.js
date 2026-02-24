@@ -1,31 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/BlackoutDatesModal.css';
-
-// Use the same API URL logic as the main api.js
-const API_BASE_URL = typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL
-  ? process.env.REACT_APP_API_URL
-  : 'https://wildpass-api.onrender.com/api';
+import { getApiBaseUrl } from '../services/api';
 
 const BlackoutDatesModal = ({ isOpen, onClose }) => {
   const [blackoutData, setBlackoutData] = useState(null);
   const [selectedYear, setSelectedYear] = useState('2026');
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Load data once on mount
+  // Only load when modal opens
   useEffect(() => {
-    loadBlackoutDates();
-  }, []);
+    if (isOpen) loadBlackoutDates();
+  }, [isOpen]);
 
-  // Update displayed periods when year changes - filter to only show selected year
+  // Update displayed periods when year changes - filter out past dates
   const allPeriods = blackoutData ? (blackoutData.blackout_periods[selectedYear] || []) : [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const blackoutPeriods = allPeriods.filter(period => {
     const year = new Date(period.start).getFullYear().toString();
-    return year === selectedYear;
+    if (year !== selectedYear) return false;
+    // Hide periods whose end date has already passed
+    const [endY, endM, endD] = period.end.split('-').map(Number);
+    const endDate = new Date(endY, endM - 1, endD);
+    return endDate >= today;
   });
 
   const loadBlackoutDates = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/blackout-dates`);
+      const response = await fetch(`${getApiBaseUrl()}/blackout-dates`);
       const data = await response.json();
       
       setLastUpdated(data.last_updated);

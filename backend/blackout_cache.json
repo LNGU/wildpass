@@ -1,37 +1,7 @@
 {
-  "last_updated": "2026-01-31T19:04:05.410509",
+  "last_updated": "2026-02-24T00:25:10.549687",
   "blackout_periods": {
     "2026": [
-      {
-        "start": "2026-01-01",
-        "end": "2026-01-01",
-        "description": "New Year's Day"
-      },
-      {
-        "start": "2026-01-03",
-        "end": "2026-01-04",
-        "description": "Early January"
-      },
-      {
-        "start": "2026-01-15",
-        "end": "2026-01-16",
-        "description": "MLK Weekend"
-      },
-      {
-        "start": "2026-01-19",
-        "end": "2026-01-19",
-        "description": "MLK Day"
-      },
-      {
-        "start": "2026-02-12",
-        "end": "2026-02-13",
-        "description": "Valentine's/Presidents Day Weekend"
-      },
-      {
-        "start": "2026-02-16",
-        "end": "2026-02-16",
-        "description": "Presidents Day"
-      },
       {
         "start": "2026-03-13",
         "end": "2026-03-15",

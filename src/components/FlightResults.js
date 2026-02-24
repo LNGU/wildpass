@@ -172,10 +172,10 @@ function FlightResults({
       {flights.length === 0 ? (
         <div className="no-results">
           <div className="no-results-icon">✈️</div>
-          <h3>Ready to search!</h3>
-          <p>When you implement the scraping functionality, flight results will appear here.</p>
+          <h3>No flights found</h3>
+          <p>No Frontier flights matched your search criteria. Try different dates or destinations.</p>
           <p className="hint">
-            Each flight will show the origin, destination, price, departure time, and airline details.
+            Tip: Use "Any Airport" for destinations to search all Frontier routes.
           </p>
         </div>
       ) : (
