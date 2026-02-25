@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
+from flask_caching import Cache
 from serpapi_flights import SerpApiFlightSearch
 from aerodatabox_api import RealTimeFlightService
 from trip_planner import find_optimal_trips
@@ -11,12 +12,54 @@ import json
 import os
 import random
 import time
+import threading
+import urllib.request
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
+
+# =============================================================================
+# KEEP-ALIVE SELF-PING (prevents Render free-tier from sleeping after 15 min)
+# =============================================================================
+def _keep_alive_ping():
+    """Background thread that pings the public Render URL every 5 minutes.
+    Uses the external URL so Render counts it as real inbound traffic."""
+    public_url = os.environ.get('RENDER_EXTERNAL_URL')  # Render sets this automatically
+    if not public_url:
+        print("⏸️  RENDER_EXTERNAL_URL not set — keep-alive self-ping disabled (local dev)")
+        return
+    health_url = f"{public_url}/health"
+    print(f"💓 Keep-alive thread started — pinging {health_url} every 5 min")
+    while True:
+        time.sleep(300)  # 5 minutes
+        try:
+            req = urllib.request.Request(health_url, method='GET')
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                print(f"💓 Keep-alive ping: {resp.status}")
+        except Exception as e:
+            print(f"💓 Keep-alive ping failed: {e}")
+
+# Start the keep-alive thread (daemon so it dies with the process)
+_ping_thread = threading.Thread(target=_keep_alive_ping, daemon=True)
+_ping_thread.start()
+
+# File-based cache that survives restarts
+cache_config = {
+    'CACHE_TYPE': 'FileSystemCache',
+    'CACHE_DIR': os.path.join(os.path.dirname(os.path.abspath(__file__)), '.flask_cache'),
+    'CACHE_DEFAULT_TIMEOUT': 3600,  # 1 hour
+}
+app.config.from_mapping(cache_config)
+flask_cache = Cache(app)
+
+# Lazy initialization flag
+_startup_done = False
+_startup_lock = threading.Lock()
 
 # Root route for health checks (Render, etc.)
 @app.route('/')
@@ -32,9 +75,21 @@ def index():
 def health():
     return jsonify({'status': 'ok'})
 
-# Update blackout dates on startup
-print("🚀 Starting WildPass Backend...")
-update_if_needed()
+def _lazy_init():
+    """Run startup tasks lazily on first request (in a background thread)."""
+    global _startup_done
+    if _startup_done:
+        return
+    with _startup_lock:
+        if _startup_done:
+            return
+        _startup_done = True
+        threading.Thread(target=update_if_needed, daemon=True).start()
+        print("🚀 WildPass Backend ready (blackout update running in background)")
+
+@app.before_request
+def ensure_initialized():
+    _lazy_init()
 
 # Initialize SerpApi Google Flights client (flight search — includes Frontier F9)
 flight_client = None
@@ -53,20 +108,9 @@ realtime_service = RealTimeFlightService()
 # Development mode — returns mock data when API keys are not configured
 DEV_MODE = os.environ.get('DEV_MODE', 'false' if FLIGHT_API_ENABLED else 'true').lower() == 'true'
 
-# Simple in-memory cache
-cache = {}
-CACHE_DURATION = timedelta(hours=1)  # Cache results for 1 hour
-
 def get_cache_key(origins, destinations, departure_date, return_date, trip_type):
     """Generate a unique cache key for the search parameters"""
-    return f"{','.join(sorted(origins))}_{','.join(sorted(destinations))}_{departure_date}_{return_date}_{trip_type}"
-
-def is_cache_valid(cache_entry):
-    """Check if cached entry is still valid"""
-    if not cache_entry:
-        return False
-    cache_time = datetime.fromisoformat(cache_entry['timestamp'])
-    return datetime.now() - cache_time < CACHE_DURATION
+    return f"flights_{','.join(sorted(origins))}_{','.join(sorted(destinations))}_{departure_date}_{return_date}_{trip_type}"
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -194,11 +238,12 @@ def search_flights():
 
         # Check cache first
         cache_key = get_cache_key(origins, destinations, departure_date, return_date, trip_type)
+        cached_result = flask_cache.get(cache_key)
 
-        if cache_key in cache and is_cache_valid(cache[cache_key]):
+        if cached_result is not None:
             print(f"Returning cached results for {cache_key}")
             return jsonify({
-                'flights': cache[cache_key]['flights'],
+                'flights': cached_result,
                 'cached': True,
                 'searchParams': data,
                 'devMode': DEV_MODE
@@ -235,10 +280,7 @@ def search_flights():
             data_source = 'mock'
 
         # Cache the results
-        cache[cache_key] = {
-            'flights': flights,
-            'timestamp': datetime.now().isoformat()
-        }
+        flask_cache.set(cache_key, flights)
 
         response_data = {
             'flights': flights,
@@ -519,18 +561,15 @@ def trip_planner():
 @app.route('/api/cache/clear', methods=['POST'])
 def clear_cache():
     """Clear the flight cache"""
-    global cache
-    cache = {}
+    flask_cache.clear()
     return jsonify({'message': 'Cache cleared successfully'})
 
 @app.route('/api/cache/stats', methods=['GET'])
 def cache_stats():
     """Get cache statistics"""
-    valid_entries = sum(1 for entry in cache.values() if is_cache_valid(entry))
     return jsonify({
-        'total_entries': len(cache),
-        'valid_entries': valid_entries,
-        'expired_entries': len(cache) - valid_entries
+        'cache_type': 'FileSystemCache',
+        'message': 'File-based cache active — survives restarts'
     })
 
 @app.route('/api/debug/search', methods=['POST'])

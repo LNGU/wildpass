@@ -9,6 +9,35 @@ console.log('API Base URL:', API_BASE_URL);
 // Export base URL for components that need it
 export const getApiBaseUrl = () => API_BASE_URL;
 
+// =============================================================================
+// KEEP-ALIVE: ping backend every 5 min to prevent Render free-tier sleep
+// =============================================================================
+const KEEP_ALIVE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+let _keepAliveTimer = null;
+
+export function startKeepAlive() {
+  if (_keepAliveTimer) return; // already running
+  const healthUrl = API_BASE_URL.replace(/\/api\/?$/, '') + '/health';
+  console.log(`💓 Frontend keep-alive started — pinging ${healthUrl} every 5 min`);
+  _keepAliveTimer = setInterval(() => {
+    fetch(healthUrl).then(r => {
+      if (r.ok) console.log('💓 Keep-alive ping OK');
+    }).catch(() => {
+      console.warn('💓 Keep-alive ping failed');
+    });
+  }, KEEP_ALIVE_INTERVAL);
+}
+
+export function stopKeepAlive() {
+  if (_keepAliveTimer) {
+    clearInterval(_keepAliveTimer);
+    _keepAliveTimer = null;
+  }
+}
+
+// Auto-start when module loads (only pings when browser tab is open)
+startKeepAlive();
+
 // Cache utilities
 const CACHE_PREFIX = 'wildpass_';
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
