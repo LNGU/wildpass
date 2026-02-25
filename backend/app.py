@@ -509,19 +509,27 @@ def trip_planner():
 
             print(f"Searching departure date: {current_departure_date} (day {days_searched + 1}/{max_days_to_search})")
 
-            # Search for round trips with each return date
-            batch_flights = []
-            for return_date in return_dates:
+            # Search for round trips with each return date IN PARALLEL
+            def _search_return_date(ret_date):
                 if FLIGHT_API_ENABLED and flight_client:
-                    flights = flight_client.search_flights(
+                    return flight_client.search_flights(
                         origins=origins,
                         destinations=destinations,
                         departure_date=current_departure_date,
-                        return_date=return_date,
+                        return_date=ret_date,
                         adults=1,
                         airline_filter='F9'
                     )
-                    batch_flights.extend(flights)
+                return []
+
+            batch_flights = []
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {executor.submit(_search_return_date, rd): rd for rd in return_dates}
+                for future in as_completed(futures):
+                    try:
+                        batch_flights.extend(future.result())
+                    except Exception as e:
+                        print(f"Error searching return date {futures[future]}: {e}")
 
             all_flights.extend(batch_flights)
 

@@ -34,3 +34,4 @@ dist/
 *.snap
 .vercel
 .env*.local
+.flask_cache/
