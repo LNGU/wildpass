@@ -45,10 +45,11 @@ const CACHE_PREFIX = 'wildpass_';
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
 class CacheManager {
-  static getCacheKey(origins, destinations, tripType, departureDate, returnDate) {
+  static getCacheKey(origins, destinations, tripType, departureDate, returnDate, airlineFilter) {
     // Don't sort arrays - maintain origin->destination order for cache key
     // This ensures that ORD->CUN and CUN->ORD are treated as different searches
-    return `${CACHE_PREFIX}${origins.join(',')}_${destinations.join(',')}_${tripType}_${departureDate}_${returnDate || 'null'}`;
+    const airline = airlineFilter || 'ALL';
+    return `${CACHE_PREFIX}${origins.join(',')}_${destinations.join(',')}_${tripType}_${departureDate}_${returnDate || 'null'}_${airline}`;
   }
 
   static setCache(key, data) {
@@ -137,7 +138,7 @@ let activeSearchController = null;
 
 // Streaming search with EventSource (Server-Sent Events)
 export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onError, onFallbackNotice) => {
-  const { origins, destinations, tripType, departureDate, returnDate } = searchParams;
+  const { origins, destinations, tripType, departureDate, returnDate, airlineFilter } = searchParams;
 
   // Abort any in-progress search
   if (activeSearchController) {
@@ -146,7 +147,7 @@ export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onEr
   }
 
   // Check cache first
-  const cacheKey = CacheManager.getCacheKey(origins, destinations, tripType, departureDate, returnDate);
+  const cacheKey = CacheManager.getCacheKey(origins, destinations, tripType, departureDate, returnDate, airlineFilter);
   console.log('🔑 Cache key:', cacheKey);
   console.log('📋 Search params:', { origins, destinations, tripType, departureDate, returnDate });
 
@@ -267,10 +268,10 @@ export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onEr
 
 // Regular search (non-streaming, for compatibility)
 export const searchFlights = async (searchParams) => {
-  const { origins, destinations, tripType, departureDate, returnDate } = searchParams;
+  const { origins, destinations, tripType, departureDate, returnDate, airlineFilter } = searchParams;
 
   // Check cache first
-  const cacheKey = CacheManager.getCacheKey(origins, destinations, tripType, departureDate, returnDate);
+  const cacheKey = CacheManager.getCacheKey(origins, destinations, tripType, departureDate, returnDate, airlineFilter);
   const cachedData = CacheManager.getCache(cacheKey);
 
   if (cachedData) {
