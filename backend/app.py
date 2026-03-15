@@ -838,6 +838,16 @@ def get_realtime_arrivals(airport_code):
     
     return jsonify(result)
 
+
+@app.route('/api/realtime/flight/<flight_number>/live', methods=['GET'])
+@require_auth
+def get_realtime_flight_live(flight_number):
+    """Get live position data for an in-flight aircraft."""
+    result = realtime_service.get_live_flight(flight_number)
+    if result.get('error'):
+        return jsonify(result), 404 if not result.get('live') else 500
+    return jsonify(result)
+
 # =============================================================================
 # BLACKOUT DATES ENDPOINTS
 # =============================================================================

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getAuthHeader } from '../services/auth';
 import './RealTimeFlights.css';
+import RealTimeFlightDetail from './RealTimeFlightDetail';
 
 function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
   const [airport, setAirport] = useState('DEN');
@@ -14,6 +15,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
   const [airportFilter, setAirportFilter] = useState('');
   const [isMockData, setIsMockData] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedFlight, setSelectedFlight] = useState(null);
   const dropdownRef = useRef(null);
   const fetchIdRef = useRef(0); // track latest fetch to ignore stale responses
 
@@ -248,7 +250,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
     const isDelay = flight.delay && flight.delay !== 'On time';
     
     return (
-      <div key={index} className={`realtime-flight-row ${getStatusClass(flight.status)}`}>
+      <div key={index} className={`realtime-flight-row ${getStatusClass(flight.status)} clickable`} onClick={() => setSelectedFlight(flight)}>
         <div className="flight-info-main">
           <div className="flight-number-cell">
             <span className="flight-number">{flight.flight_number}</span>
@@ -522,6 +524,14 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
         </div>
       )}
       
+      {selectedFlight && (
+        <RealTimeFlightDetail
+          flight={selectedFlight}
+          apiBaseUrl={apiBaseUrl}
+          onClose={() => setSelectedFlight(null)}
+        />
+      )}
+
       <div className="realtime-footer">
         <span className="api-note">🎫 Free tier: 300 requests/month • Real-time data via AeroDataBox</span>
       </div>

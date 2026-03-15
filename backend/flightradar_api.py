@@ -427,6 +427,35 @@ class RealTimeFlightService:
         aircraft_model = aircraft_info.get('model', {})
         aircraft = (aircraft_model.get('code', '') or aircraft_model.get('text', 'N/A')) if isinstance(aircraft_model, dict) else 'N/A'
 
+        # Detail fields for flight detail view
+        origin_terminal = origin_info.get('info', {}).get('terminal') if isinstance(origin_info, dict) else None
+        origin_gate = origin_info.get('info', {}).get('gate') if isinstance(origin_info, dict) else None
+        origin_baggage = origin_info.get('info', {}).get('baggage') if isinstance(origin_info, dict) else None
+        dest_terminal_d = dest_info.get('info', {}).get('terminal') if isinstance(dest_info, dict) else None
+        dest_gate_d = dest_info.get('info', {}).get('gate') if isinstance(dest_info, dict) else None
+        dest_baggage = dest_info.get('info', {}).get('baggage') if isinstance(dest_info, dict) else None
+
+        origin_airport_name = origin_info.get('name', '') if isinstance(origin_info, dict) else ''
+        origin_city_full = (origin_info.get('position', {}).get('region', {}).get('city', '') if isinstance(origin_info, dict) else '') or origin_city
+        dest_airport_name = dest_info.get('name', '') if isinstance(dest_info, dict) else ''
+        dest_city_full = (dest_info.get('position', {}).get('region', {}).get('city', '') if isinstance(dest_info, dict) else '') or dest_city
+
+        sched_dep_ts = scheduled.get('departure')
+        sched_arr_ts = scheduled.get('arrival')
+        est_dep_ts = estimated.get('departure')
+        est_arr_ts = estimated.get('arrival')
+        actual_dep_ts = real.get('departure')
+        actual_arr_ts = real.get('arrival')
+
+        duration_minutes = None
+        if sched_dep_ts and sched_arr_ts and sched_arr_ts > sched_dep_ts:
+            duration_minutes = (sched_arr_ts - sched_dep_ts) // 60
+
+        callsign = ident.get('callsign', '')
+        aircraft_reg = aircraft_info.get('registration', '')
+        aircraft_model_code = aircraft_model.get('code', '') if isinstance(aircraft_model, dict) else ''
+        aircraft_model_text_v = aircraft_model.get('text', '') if isinstance(aircraft_model, dict) else ''
+
         return {
             'flight_number': fn,
             'airline': {'name': airline_name, 'iata': airline_iata},
@@ -443,7 +472,76 @@ class RealTimeFlightService:
             'terminal': terminal,
             'gate': gate,
             'aircraft': aircraft,
+            'origin_terminal': origin_terminal,
+            'origin_gate': origin_gate,
+            'origin_baggage': origin_baggage,
+            'dest_terminal': dest_terminal_d,
+            'dest_gate': dest_gate_d,
+            'dest_baggage': dest_baggage,
+            'origin_airport_name': origin_airport_name,
+            'origin_city_name': origin_city_full,
+            'dest_airport_name': dest_airport_name,
+            'dest_city_name': dest_city_full,
+            'scheduled_departure_ts': sched_dep_ts,
+            'scheduled_arrival_ts': sched_arr_ts,
+            'estimated_departure_ts': est_dep_ts,
+            'estimated_arrival_ts': est_arr_ts,
+            'actual_departure_ts': actual_dep_ts,
+            'actual_arrival_ts': actual_arr_ts,
+            'duration_minutes': duration_minutes,
+            'callsign': callsign,
+            'aircraft_registration': aircraft_reg,
+            'aircraft_model': aircraft_model_code,
+            'aircraft_model_text': aircraft_model_text_v,
         }
+
+
+    def get_live_flight(self, flight_number):
+        """Get live position data for a specific flight."""
+        flight_num = flight_number.replace('-', '').replace(' ', '').upper()
+
+        match = re.match(r'^([A-Z]{3})(\d+)$', flight_num)
+        if match:
+            icao_code = match.group(1)
+            number = match.group(2)
+            iata = ICAO_TO_IATA.get(icao_code)
+            if iata:
+                flight_num = f"{iata}{number}"
+
+        if not self._api:
+            return {'error': 'FlightRadar24 API not available', 'live': False}
+
+        try:
+            al_match = re.match(r'^([A-Z0-9]{2})(\d+)$', flight_num)
+            if not al_match:
+                return {'error': f'Invalid flight number: {flight_number}', 'live': False}
+
+            airline_iata = al_match.group(1)
+            airline_icao = IATA_TO_ICAO.get(airline_iata)
+
+            if airline_icao:
+                try:
+                    live_flights = self._api.get_flights(airline=airline_icao)
+                    for f in live_flights:
+                        if f.number and f.number.replace(' ', '') == flight_num:
+                            return {
+                                'flight_number': flight_num,
+                                'latitude': f.latitude,
+                                'longitude': f.longitude,
+                                'altitude': f.altitude,
+                                'ground_speed': f.ground_speed,
+                                'heading': f.heading,
+                                'vertical_speed': f.vertical_speed,
+                                'on_ground': f.on_ground if hasattr(f, 'on_ground') else (f.altitude == 0),
+                                'live': True,
+                                'mock_data': False,
+                            }
+                except Exception as e:
+                    print(f"\u26a0\ufe0f FlightRadar24 live lookup error: {e}")
+
+            return {'error': 'Flight not currently trackable', 'live': False}
+        except Exception as e:
+            return {'error': f'FlightRadar24 API error: {str(e)}', 'live': False}
 
     _AIRLINE_NAMES = {
         'F9': 'Frontier Airlines', 'UA': 'United Airlines', 'AA': 'American Airlines',
