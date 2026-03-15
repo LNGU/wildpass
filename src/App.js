@@ -18,6 +18,7 @@ function App() {
   const [backendStatus, setBackendStatus] = useState({ status: 'checking', message: 'Checking backend...' });
   const [fallbackNotice, setFallbackNotice] = useState(null);
   const [activeTab, setActiveTab] = useState('search'); // 'search' or 'realtime'
+  const [frontierOnly, setFrontierOnly] = useState(true);
 
   // Check backend health on mount
   useEffect(() => {
@@ -117,7 +118,7 @@ function App() {
     // Handle trip planner mode differently
     if (params.tripType === 'trip-planner') {
       try {
-        const result = await planTrip(params);
+        const result = await planTrip({ ...params, airlineFilter: frontierOnly ? "F9" : "ALL" });
         setFlights(result.flights || []);
         setTripPlannerInfo({
           days_searched: result.days_searched,
@@ -148,7 +149,7 @@ function App() {
 
     // Use streaming API for regular searches
     searchFlightsStreaming(
-      params,
+      { ...params, airlineFilter: frontierOnly ? "F9" : "ALL" },
       // onFlights callback - called each time new flights arrive
       (newFlights) => {
         setStatusMessage(`Receiving flight data...`);
@@ -182,7 +183,7 @@ function App() {
       <header className="header">
         <div className="container">
           <h1>WildPass</h1>
-          <p className="tagline">Find the best Frontier Airlines flight deals</p>
+          <p className="tagline">{frontierOnly ? 'Find the best Frontier Airlines flight deals' : 'Search all airline flight deals'}</p>
           <div className="nav-tabs">
             <button
               className={`nav-tab ${activeTab === 'search' ? 'active' : ''}`}
@@ -208,7 +209,7 @@ function App() {
         <div className="container">
           {activeTab === 'search' ? (
             <>
-              <SearchForm onSearch={handleSearch} loading={loading} />
+              <SearchForm onSearch={handleSearch} loading={loading} frontierOnly={frontierOnly} setFrontierOnly={setFrontierOnly} />
           {error && (
             <div className="error-message">
               <p>⚠️ {error}</p>
@@ -227,7 +228,7 @@ function App() {
               {flights.length > 0 && (
                 <p className="flights-found">{flights.length} flights found so far</p>
               )}
-              <p className="api-hint">Searching for Frontier flights...</p>
+              <p className="api-hint">{frontierOnly ? 'Searching for Frontier flights...' : 'Searching all airlines...'}</p>
             </div>
           )}
           {searchParams && flights.length > 0 && (
@@ -243,11 +244,12 @@ function App() {
               onSelectOutbound={handleSelectOutboundFlight}
               onSelectReturn={handleSelectReturnFlight}
               onResetBuildYourOwn={handleResetBuildYourOwn}
+              frontierOnly={frontierOnly}
             />
           )}
             </>
           ) : (
-            <RealTimeFlights apiBaseUrl={getApiBaseUrl()} />
+            <RealTimeFlights apiBaseUrl={getApiBaseUrl()} frontierOnly={frontierOnly} setFrontierOnly={setFrontierOnly} />
           )}
         </div>
       </main>

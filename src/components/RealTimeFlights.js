@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './RealTimeFlights.css';
 
-function RealTimeFlights({ apiBaseUrl }) {
+function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
   const [airport, setAirport] = useState('DEN');
   const [viewMode, setViewMode] = useState('departures'); // 'departures' or 'arrivals'
   const [flights, setFlights] = useState([]);
@@ -132,8 +132,8 @@ function RealTimeFlights({ apiBaseUrl }) {
 
     try {
       const endpoint = viewMode === 'departures' 
-        ? `${apiBaseUrl}/realtime/departures/${airport}?airline=F9`
-        : `${apiBaseUrl}/realtime/arrivals/${airport}?airline=F9`;
+        ? `${apiBaseUrl}/realtime/departures/${airport}?airline=${frontierOnly ? 'F9' : 'ALL'}`
+        : `${apiBaseUrl}/realtime/arrivals/${airport}?airline=${frontierOnly ? 'F9' : 'ALL'}`;
       
       const response = await fetch(endpoint);
       
@@ -159,7 +159,7 @@ function RealTimeFlights({ apiBaseUrl }) {
         setLoading(false);
       }
     }
-  }, [airport, viewMode, apiBaseUrl]);
+  }, [airport, viewMode, apiBaseUrl, frontierOnly]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -182,8 +182,8 @@ function RealTimeFlights({ apiBaseUrl }) {
     try {
       // Format flight number
       let searchNumber = flightNumber.trim().toUpperCase().replace(/\s+/g, '');
-      // Only prepend F9 if the input is purely numeric (e.g., "777" → "F9777")
-      if (/^\d+$/.test(searchNumber)) {
+      // Only prepend F9 if the input is purely numeric and in Frontier-only mode
+      if (/^\d+$/.test(searchNumber) && frontierOnly) {
         searchNumber = `F9${searchNumber}`;
       }
 
@@ -372,15 +372,22 @@ function RealTimeFlights({ apiBaseUrl }) {
   return (
     <div className="realtime-flights-container">
       <div className="realtime-header">
-        <h2>✈️ Real-Time Frontier Flights</h2>
+        <h2>✈️ {frontierOnly ? "Real-Time Frontier Flights" : "Real-Time Flights"}</h2>
         <p className="realtime-subtitle">Live flight status powered by AeroDataBox</p>
+        <div className="airline-toggle">
+          <label className="toggle-switch">
+            <input type="checkbox" checked={frontierOnly} onChange={() => setFrontierOnly(!frontierOnly)} />
+            <span className="toggle-slider"></span>
+          </label>
+          <span className="toggle-label">{frontierOnly ? "✈️ Frontier Only" : "🌐 All Airlines"}</span>
+        </div>
       </div>
       
       <div className="realtime-controls">
         <div className="search-flight-section">
           <input
             type="text"
-            placeholder="Flight # (e.g., 1234 or F91234)"
+            placeholder={frontierOnly ? "Flight # (e.g., 1234 or F91234)" : "Flight # (e.g., AA1234, UA567)"}
             value={flightNumber}
             onChange={(e) => setFlightNumber(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && searchFlight()}
@@ -499,7 +506,7 @@ function RealTimeFlights({ apiBaseUrl }) {
       
       {!loading && !singleFlight && flights.length === 0 && !error && (
         <div className="no-flights">
-          <span>No Frontier flights found for {airport}</span>
+          <span>{frontierOnly ? `No Frontier flights found for ${airport}` : `No flights found for ${airport}`}</span>
         </div>
       )}
       

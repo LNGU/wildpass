@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './SearchForm.css';
 import BlackoutDatesModal from './BlackoutDatesModal';
 
-function SearchForm({ onSearch, loading }) {
+function SearchForm({ onSearch, loading, frontierOnly, setFrontierOnly }) {
   const [searchMode, setSearchMode] = useState('package'); // 'package' or 'build-your-own'
   const [origins, setOrigins] = useState('');
   const [destinations, setDestinations] = useState('');
@@ -88,6 +88,13 @@ function SearchForm({ onSearch, loading }) {
     <div className="search-form-container">
       <div className="search-form-header">
         <h2>Search Flights</h2>
+        <div className="airline-toggle">
+          <label className="toggle-switch">
+            <input type="checkbox" checked={frontierOnly} onChange={() => setFrontierOnly(!frontierOnly)} />
+            <span className="toggle-slider"></span>
+          </label>
+          <span className="toggle-label">{frontierOnly ? "✈️ Frontier Only" : "🌐 All Airlines"}</span>
+        </div>
         <button 
           type="button" 
           className="blackout-dates-link"

@@ -230,6 +230,10 @@ def search_flights():
         departure_date = data.get('departureDate')
         return_date = data.get('returnDate')
 
+        # Airline filter: 'F9' (default), 'ALL' or '' means no filter
+        raw_airline = data.get('airlineFilter', 'F9')
+        airline_filter = None if raw_airline in ('ALL', '') else (raw_airline or 'F9')
+
         # Validate required fields
         if not origins or not destinations or not departure_date:
             return jsonify({
@@ -258,7 +262,7 @@ def search_flights():
                 departure_date=departure_date,
                 return_date=return_date if trip_type == 'round-trip' else None,
                 adults=1,
-                airline_filter='F9'
+                airline_filter=airline_filter
             )
             data_source = 'serpapi'
 
@@ -317,6 +321,10 @@ def search_flights_stream():
         departure_date = data.get('departureDate')
         return_date = data.get('returnDate')
 
+        # Airline filter
+        raw_airline = data.get('airlineFilter', 'F9')
+        airline_filter = None if raw_airline in ('ALL', '') else (raw_airline or 'F9')
+
         # Validate required fields
         if not origins or not destinations or not departure_date:
             return jsonify({
@@ -343,7 +351,7 @@ def search_flights_stream():
                                 origin, destination, departure_date,
                                 return_date=return_date if trip_type == 'round-trip' else None,
                                 adults=1,
-                                airline_filter='F9'
+                                airline_filter=airline_filter
                             )
                         except Exception as e:
                             print(f"Error searching {origin}->{destination}: {e}")
@@ -477,6 +485,10 @@ def trip_planner():
         max_trip_duration = data.get('maxTripDuration')
         max_trip_duration_unit = data.get('maxTripDurationUnit', 'days')
 
+        # Airline filter
+        raw_airline = data.get('airlineFilter', 'F9')
+        airline_filter = None if raw_airline in ('ALL', '') else (raw_airline or 'F9')
+
         # Validate required fields
         if not origins or not destinations or not departure_date or not trip_length:
             return jsonify({
@@ -518,7 +530,7 @@ def trip_planner():
                         departure_date=current_departure_date,
                         return_date=ret_date,
                         adults=1,
-                        airline_filter='F9'
+                        airline_filter=airline_filter
                     )
                 return []
 
@@ -686,7 +698,8 @@ def get_realtime_route_flights():
     """
     origin = request.args.get('origin')
     destination = request.args.get('destination')
-    airline = request.args.get('airline', 'F9')
+    raw_airline = request.args.get('airline', 'F9')
+    airline = None if raw_airline.upper() == 'ALL' else raw_airline
     
     if not origin or not destination:
         return jsonify({
@@ -712,7 +725,8 @@ def get_realtime_departures(airport_code):
     
     Note: Falls back to mock data if AeroDataBox API is unavailable
     """
-    airline = request.args.get('airline', 'F9')
+    raw_airline = request.args.get('airline', 'F9')
+    airline = None if raw_airline.upper() == 'ALL' else raw_airline
     
     result = realtime_service.get_departures(airport_code.upper(), airline.upper())
     
@@ -733,7 +747,8 @@ def get_realtime_arrivals(airport_code):
     
     Note: Falls back to mock data if AeroDataBox API is unavailable
     """
-    airline = request.args.get('airline', 'F9')
+    raw_airline = request.args.get('airline', 'F9')
+    airline = None if raw_airline.upper() == 'ALL' else raw_airline
     
     result = realtime_service.get_arrivals(airport_code.upper(), airline.upper())
     

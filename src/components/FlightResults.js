@@ -12,7 +12,8 @@ function FlightResults({
   selectedOutboundFlight = null,
   onSelectOutbound,
   onSelectReturn,
-  onResetBuildYourOwn
+  onResetBuildYourOwn,
+  frontierOnly
 }) {
   const [sortBy, setSortBy] = useState('price'); // 'price', 'nonstop', 'earliest'
   const [nonstopOnly, setNonstopOnly] = useState(false);
@@ -173,9 +174,9 @@ function FlightResults({
         <div className="no-results">
           <div className="no-results-icon">✈️</div>
           <h3>No flights found</h3>
-          <p>No Frontier flights matched your search criteria. Try different dates or destinations.</p>
+          <p>{frontierOnly ? 'No Frontier flights' : 'No flights'} matched your search criteria. Try different dates or destinations.</p>
           <p className="hint">
-            Tip: Use "Any Airport" for destinations to search all Frontier routes.
+            {frontierOnly ? 'Tip: Use "Any Airport" for destinations to search all Frontier routes.' : 'Tip: Try different dates or airports.'}
           </p>
         </div>
       ) : (
