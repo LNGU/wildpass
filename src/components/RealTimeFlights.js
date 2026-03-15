@@ -12,6 +12,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
   const [flightNumber, setFlightNumber] = useState('');
   const [singleFlight, setSingleFlight] = useState(null);
   const [airportFilter, setAirportFilter] = useState('');
+  const [isMockData, setIsMockData] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
   const fetchIdRef = useRef(0); // track latest fetch to ignore stale responses
@@ -149,6 +150,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
       if (thisId !== fetchIdRef.current) return;
 
       setFlights(data.flights || []);
+      setIsMockData(!!data.mock_data);
       setLastUpdated(new Date());
     } catch (err) {
       if (thisId !== fetchIdRef.current) return;
@@ -197,6 +199,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
       const data = await response.json();
       // Backend wraps in {flight: ...}, but handle direct response too
       const flightData = data.flight || (data.flight_number ? data : null);
+      setIsMockData(!!data.mock_data || !!(flightData && flightData.mock_data));
       if (flightData) {
         setSingleFlight(flightData);
       } else if (data.error) {
@@ -475,6 +478,13 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
           Last updated: {lastUpdated.toLocaleTimeString()}
         </div>
       )}
+      
+      {isMockData && (
+        <div className="mock-data-banner">
+          ⚠️ Showing simulated data — live API unavailable
+        </div>
+      )}
+      
       
       {error && (
         <div className="realtime-error">

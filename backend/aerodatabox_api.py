@@ -238,7 +238,9 @@ class RealTimeFlightService:
 
         if not self.api_key:
             print("⚠️ AeroDataBox API key not configured — using mock data")
-            return _generate_mock_single_flight(flight_num)
+            result = _generate_mock_single_flight(flight_num)
+            result['mock_data'] = True
+            return result
 
         try:
             today = datetime.now().strftime('%Y-%m-%d')
@@ -247,22 +249,28 @@ class RealTimeFlightService:
             response = requests.get(url, headers=self.headers, timeout=15)
 
             if response.status_code == 404:
-                return {'error': f'No flight found for {flight_number}'}
+                return {'error': f'No flight found for {flight_number}', 'mock_data': False}
             if response.status_code != 200:
                 print(f"⚠️ AeroDataBox API error ({response.status_code}) — using mock data")
-                return _generate_mock_single_flight(flight_num)
+                result = _generate_mock_single_flight(flight_num)
+                result['mock_data'] = True
+                return result
 
             flights = response.json()
             if not flights or (isinstance(flights, list) and len(flights) == 0):
-                return {'error': f'No flight found for {flight_number}'}
+                return {'error': f'No flight found for {flight_number}', 'mock_data': False}
 
             # AeroDataBox returns a list; take the first entry
             flight_data = flights[0] if isinstance(flights, list) else flights
-            return self._format_aerodatabox_flight(flight_data, flight_num)
+            result = self._format_aerodatabox_flight(flight_data, flight_num)
+            result['mock_data'] = False
+            return result
 
         except Exception as e:
             print(f"⚠️ AeroDataBox exception: {e} — using mock data")
-            return _generate_mock_single_flight(flight_num)
+            result = _generate_mock_single_flight(flight_num)
+            result['mock_data'] = True
+            return result
 
     def get_route_flights(self, origin, destination, airline_code=None):
         """
@@ -324,6 +332,7 @@ class RealTimeFlightService:
                 'count': len(route_flights),
                 'flights': route_flights,
                 'last_updated': datetime.now().isoformat(),
+                'mock_data': False,
             }
 
         except Exception as e:
@@ -390,6 +399,7 @@ class RealTimeFlightService:
                 'count': len(formatted),
                 'flights': formatted,
                 'last_updated': datetime.now().isoformat(),
+                'mock_data': False,
             }
 
         except Exception as e:
@@ -454,6 +464,7 @@ class RealTimeFlightService:
                 'count': len(formatted),
                 'flights': formatted,
                 'last_updated': datetime.now().isoformat(),
+                'mock_data': False,
             }
 
         except Exception as e:

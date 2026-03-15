@@ -778,3 +778,22 @@
     width: 60px;
   }
 }
+
+/* Mock data warning banner */
+.mock-data-banner {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #1a1a2e;
+  padding: 10px 16px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin: 8px 0 12px 0;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  animation: pulse-mock 2s ease-in-out infinite;
+}
+
+@keyframes pulse-mock {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
