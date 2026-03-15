@@ -3,40 +3,18 @@ FlightRadar24 API Integration for Real-Time Flight Status
 
 Replaces AeroDataBox API. Uses the unofficial FlightRadar24 Python SDK.
 No API key required. Provides real-time flight tracking data.
+No mock data fallback -- errors are returned directly.
 
 Package: FlightRadarAPI (pip install FlightRadarAPI)
 """
 import re
-import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from FlightRadar24 import FlightRadar24API
 
 
 # =============================================================================
-# Mock data generators (fallback when API is unavailable)
-# Copied from aerodatabox_api.py for compatibility
+# Constants
 # =============================================================================
-
-MOCK_DESTINATIONS = {
-    'DEN': [
-        ('LAS', 'Las Vegas'), ('PHX', 'Phoenix'), ('LAX', 'Los Angeles'),
-        ('SFO', 'San Francisco'), ('SEA', 'Seattle'), ('ORD', 'Chicago'),
-        ('ATL', 'Atlanta'), ('MCO', 'Orlando'), ('MIA', 'Miami'), ('DFW', 'Dallas')
-    ],
-    'LAS': [
-        ('DEN', 'Denver'), ('LAX', 'Los Angeles'), ('SFO', 'San Francisco'),
-        ('PHX', 'Phoenix'), ('SEA', 'Seattle'), ('ORD', 'Chicago')
-    ],
-    'PHX': [
-        ('DEN', 'Denver'), ('LAS', 'Las Vegas'), ('LAX', 'Los Angeles'),
-        ('SFO', 'San Francisco'), ('ORD', 'Chicago'), ('ATL', 'Atlanta')
-    ],
-}
-
-DEFAULT_DESTINATIONS = [
-    ('DEN', 'Denver'), ('LAS', 'Las Vegas'), ('PHX', 'Phoenix'),
-    ('LAX', 'Los Angeles'), ('ORD', 'Chicago'), ('ATL', 'Atlanta')
-]
 
 AIRPORT_NAMES = {
     'DEN': 'Denver International Airport',
@@ -65,101 +43,6 @@ IATA_TO_ICAO = {
 }
 
 ICAO_TO_IATA = {v: k for k, v in IATA_TO_ICAO.items()}
-
-
-def _generate_mock_flights(airport_code, flight_type='departures', count=8):
-    """Generate realistic mock flight data for fallback."""
-    destinations = MOCK_DESTINATIONS.get(airport_code, DEFAULT_DESTINATIONS)
-    destinations = [(code, name) for code, name in destinations if code != airport_code]
-
-    flights = []
-    statuses = ['scheduled', 'scheduled', 'scheduled', 'active', 'landed', 'delayed']
-    base_time = datetime.now()
-
-    for i in range(min(count, len(destinations) * 2)):
-        dest_code, dest_name = destinations[i % len(destinations)]
-        mock_airlines = [
-            ('F9', 'Frontier Airlines'), ('UA', 'United Airlines'), ('AA', 'American Airlines'),
-            ('DL', 'Delta Air Lines'), ('WN', 'Southwest Airlines'), ('NK', 'Spirit Airlines'),
-            ('B6', 'JetBlue Airways'), ('AS', 'Alaska Airlines'),
-        ]
-        al_code, al_name = random.choice(mock_airlines)
-        flight_num = f"{al_code}{random.randint(100, 2999)}"
-        status = random.choice(statuses)
-
-        dep_offset = timedelta(minutes=random.randint(-60, 180))
-        scheduled_dep = base_time + dep_offset
-        flight_duration = timedelta(hours=random.randint(1, 4), minutes=random.randint(0, 59))
-        scheduled_arr = scheduled_dep + flight_duration
-
-        delay_minutes = random.choice([0, 0, 0, 15, 30, 45]) if status == 'delayed' else 0
-
-        flight = {
-            'flight_number': flight_num,
-            'origin': airport_code if flight_type == 'departures' else dest_code,
-            'origin_city': 'Denver' if airport_code == 'DEN' else airport_code,
-            'destination': dest_code if flight_type == 'departures' else airport_code,
-            'destination_city': dest_name if flight_type == 'departures' else (
-                'Denver' if airport_code == 'DEN' else airport_code),
-            'status': status,
-            'status_display': _get_status_display(status),
-            'scheduled_time': scheduled_dep.strftime('%I:%M %p'),
-            'scheduled': {'local': scheduled_dep.strftime('%I:%M %p')},
-            'actual': {
-                'local': (scheduled_dep + timedelta(minutes=delay_minutes)).strftime('%I:%M %p')
-            } if status in ['active', 'landed', 'delayed'] else None,
-            'delay': f"+{delay_minutes} min" if delay_minutes > 0 else 'On time',
-            'terminal': random.choice(['A', 'B', 'C']),
-            'gate': f"{random.choice(['A', 'B', 'C'])}{random.randint(1, 50)}",
-            'aircraft': random.choice(['A320', 'A321', 'A319']),
-            'airline': {'name': al_name, 'iata': al_code},
-            'airline_name': al_name,
-        }
-        flights.append(flight)
-
-    flights.sort(key=lambda x: x.get('scheduled_time', ''))
-    return flights
-
-
-def _generate_mock_single_flight(flight_number):
-    """Generate mock data for a single flight lookup."""
-    now = datetime.now()
-    dep_time = now - timedelta(hours=random.randint(0, 2))
-    arr_time = dep_time + timedelta(hours=random.randint(2, 5))
-
-    origins = [('DEN', 'Denver'), ('LAS', 'Las Vegas'), ('PHX', 'Phoenix')]
-    dests = [('LAX', 'Los Angeles'), ('ORD', 'Chicago'), ('ATL', 'Atlanta')]
-
-    origin = random.choice(origins)
-    dest = random.choice(dests)
-    status = random.choice(['scheduled', 'active', 'landed'])
-
-    return {
-        'flight_number': flight_number.upper(),
-        'origin': origin[0],
-        'origin_city': origin[1],
-        'destination': dest[0],
-        'destination_city': dest[1],
-        'status': status,
-        'status_display': _get_status_display(status),
-        'departure': {
-            'airport': AIRPORT_NAMES.get(origin[0], origin[1]),
-            'airport_code': origin[0],
-            'scheduled': {'local': dep_time.strftime('%I:%M %p')},
-            'actual': {'local': dep_time.strftime('%I:%M %p')} if status != 'scheduled' else None,
-            'terminal': 'A',
-            'gate': 'A23',
-        },
-        'arrival': {
-            'airport': AIRPORT_NAMES.get(dest[0], dest[1]),
-            'airport_code': dest[0],
-            'scheduled': {'local': arr_time.strftime('%I:%M %p')},
-            'actual': {'local': arr_time.strftime('%I:%M %p')} if status == 'landed' else None,
-            'terminal': 'B',
-            'gate': 'B15',
-        },
-        'delay': 'On time',
-    }
 
 
 def _get_status_display(status):
@@ -270,10 +153,7 @@ class RealTimeFlightService:
                 flight_num = f"{iata}{number}"
 
         if not self._api:
-            print("⚠️ FlightRadar24 API not available — using mock data")
-            result = _generate_mock_single_flight(flight_num)
-            result['mock_data'] = True
-            return result
+            return {'error': 'FlightRadar24 API failed to initialize', 'mock_data': False}
 
         try:
             # Extract airline code
@@ -337,24 +217,13 @@ class RealTimeFlightService:
             return {'error': f'No flight found for {flight_number}', 'mock_data': False}
 
         except Exception as e:
-            print(f"⚠️ FlightRadar24 exception: {e} — using mock data")
-            result = _generate_mock_single_flight(flight_num)
-            result['mock_data'] = True
-            return result
+            print(f"⚠️ FlightRadar24 exception: {e}")
+            return {'error': f'FlightRadar24 API error: {str(e)}', 'mock_data': False}
 
     def get_departures(self, airport_code, airline_code=None):
         """Get all departing flights from an airport today."""
-        def _mock():
-            mock_flights = _generate_mock_flights(airport_code, 'departures')
-            return {
-                'airport': airport_code, 'airline': airline_code,
-                'type': 'departures', 'count': len(mock_flights),
-                'flights': mock_flights,
-                'last_updated': datetime.now().isoformat(), 'mock_data': True,
-            }
-
         if not self._api:
-            return _mock()
+            return {'error': 'FlightRadar24 API not available', 'flights': [], 'mock_data': False}
 
         try:
             details = self._api.get_airport_details(airport_code)
@@ -377,22 +246,13 @@ class RealTimeFlightService:
                 'last_updated': datetime.now().isoformat(), 'mock_data': False,
             }
         except Exception as e:
-            print(f"⚠️ FlightRadar24 departures exception: {e} — using mock data")
-            return _mock()
+            print(f"⚠️ FlightRadar24 departures exception: {e}")
+            return {'error': f'FlightRadar24 API error: {str(e)}', 'flights': [], 'mock_data': False}
 
     def get_arrivals(self, airport_code, airline_code=None):
         """Get all arriving flights to an airport today."""
-        def _mock():
-            mock_flights = _generate_mock_flights(airport_code, 'arrivals')
-            return {
-                'airport': airport_code, 'airline': airline_code,
-                'type': 'arrivals', 'count': len(mock_flights),
-                'flights': mock_flights,
-                'last_updated': datetime.now().isoformat(), 'mock_data': True,
-            }
-
         if not self._api:
-            return _mock()
+            return {'error': 'FlightRadar24 API not available', 'flights': [], 'mock_data': False}
 
         try:
             details = self._api.get_airport_details(airport_code)
@@ -415,25 +275,13 @@ class RealTimeFlightService:
                 'last_updated': datetime.now().isoformat(), 'mock_data': False,
             }
         except Exception as e:
-            print(f"⚠️ FlightRadar24 arrivals exception: {e} — using mock data")
-            return _mock()
+            print(f"⚠️ FlightRadar24 arrivals exception: {e}")
+            return {'error': f'FlightRadar24 API error: {str(e)}', 'flights': [], 'mock_data': False}
 
     def get_route_flights(self, origin, destination, airline_code=None):
         """Get all flights for a specific route today."""
-        def _mock():
-            mock_flights = [
-                _generate_mock_single_flight(
-                    f"{random.choice(['F9', 'UA', 'AA', 'DL', 'WN', 'NK'])}{random.randint(100, 2999)}"
-                ) for _ in range(random.randint(1, 3))
-            ]
-            return {
-                'route': f"{origin} → {destination}", 'airline': airline_code,
-                'count': len(mock_flights), 'flights': mock_flights,
-                'last_updated': datetime.now().isoformat(), 'mock_data': True,
-            }
-
         if not self._api:
-            return _mock()
+            return {'error': 'FlightRadar24 API not available', 'flights': [], 'mock_data': False}
 
         try:
             details = self._api.get_airport_details(origin)
@@ -457,8 +305,8 @@ class RealTimeFlightService:
                 'last_updated': datetime.now().isoformat(), 'mock_data': False,
             }
         except Exception as e:
-            print(f"⚠️ FlightRadar24 route exception: {e} — using mock data")
-            return _mock()
+            print(f"⚠️ FlightRadar24 route exception: {e}")
+            return {'error': f'FlightRadar24 API error: {str(e)}', 'flights': [], 'mock_data': False}
 
     # -----------------------------------------------------------------
     # Response format converters
