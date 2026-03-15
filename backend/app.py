@@ -785,7 +785,7 @@ def get_realtime_route_flights():
             'error': 'Missing required parameters: origin, destination'
         }), 400
     
-    result = realtime_service.get_route_flights(origin.upper(), destination.upper(), airline.upper())
+    result = realtime_service.get_route_flights(origin.upper(), destination.upper(), airline.upper() if airline else None)
     
     if 'error' in result and not result.get('flights'):
         return jsonify(result), 500
@@ -808,7 +808,7 @@ def get_realtime_departures(airport_code):
     raw_airline = request.args.get('airline', 'F9')
     airline = None if raw_airline.upper() == 'ALL' else raw_airline
     
-    result = realtime_service.get_departures(airport_code.upper(), airline.upper())
+    result = realtime_service.get_departures(airport_code.upper(), airline.upper() if airline else None)
     
     if 'error' in result and not result.get('flights'):
         return jsonify(result), 500
@@ -831,7 +831,7 @@ def get_realtime_arrivals(airport_code):
     raw_airline = request.args.get('airline', 'F9')
     airline = None if raw_airline.upper() == 'ALL' else raw_airline
     
-    result = realtime_service.get_arrivals(airport_code.upper(), airline.upper())
+    result = realtime_service.get_arrivals(airport_code.upper(), airline.upper() if airline else None)
     
     if 'error' in result and not result.get('flights'):
         return jsonify(result), 500

@@ -219,8 +219,9 @@ class RealTimeFlightService:
                 'access_key': self.api_key,
                 'dep_iata': origin,
                 'arr_iata': destination,
-                'airline_iata': airline_code
             }
+            if airline_code:
+                params['airline_iata'] = airline_code
             
             response = requests.get(f"{self.base_url}/flights", params=params, timeout=30)
             
@@ -283,8 +284,9 @@ class RealTimeFlightService:
             params = {
                 'access_key': self.api_key,
                 'dep_iata': airport_code,
-                'airline_iata': airline_code
             }
+            if airline_code:
+                params['airline_iata'] = airline_code
             
             response = requests.get(f"{self.base_url}/flights", params=params, timeout=30)
             
@@ -351,8 +353,9 @@ class RealTimeFlightService:
             params = {
                 'access_key': self.api_key,
                 'arr_iata': airport_code,
-                'airline_iata': airline_code
             }
+            if airline_code:
+                params['airline_iata'] = airline_code
             
             response = requests.get(f"{self.base_url}/flights", params=params, timeout=30)
             
