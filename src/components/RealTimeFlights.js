@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { getAuthHeader } from '../services/auth';
 import './RealTimeFlights.css';
 
 function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
@@ -135,7 +136,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
         ? `${apiBaseUrl}/realtime/departures/${airport}?airline=${frontierOnly ? 'F9' : 'ALL'}`
         : `${apiBaseUrl}/realtime/arrivals/${airport}?airline=${frontierOnly ? 'F9' : 'ALL'}`;
       
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, { headers: { ...getAuthHeader() } });
       
       // Ignore stale responses if airport/viewMode changed while fetching
       if (thisId !== fetchIdRef.current) return;
@@ -187,7 +188,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
         searchNumber = `F9${searchNumber}`;
       }
 
-      const response = await fetch(`${apiBaseUrl}/realtime/flight/${searchNumber}`);
+      const response = await fetch(`${apiBaseUrl}/realtime/flight/${searchNumber}`, { headers: { ...getAuthHeader() } });
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
