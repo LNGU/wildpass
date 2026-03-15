@@ -17,8 +17,45 @@ import urllib.request
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+
+# Auth imports
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+import jwt as pyjwt
+import hashlib
+from functools import wraps
+
 # Load environment variables from .env file
 load_dotenv()
+
+# Auth configuration
+AUTH_SECRET = os.environ.get('AUTH_SECRET')
+if not AUTH_SECRET:
+    print("⚠️  WARNING: AUTH_SECRET not set — using random secret (tokens won't survive restarts)")
+    AUTH_SECRET = hashlib.sha256(os.urandom(32)).hexdigest()
+
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+ALLOWED_EMAILS = [e.strip().lower() for e in os.environ.get('ALLOWED_EMAILS', '').split(',') if e.strip()]
+
+def require_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not GOOGLE_CLIENT_ID or not ALLOWED_EMAILS:
+            # Auth not configured — allow all requests
+            return f(*args, **kwargs)
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'Missing authorization token'}), 401
+        token = auth_header[7:]
+        try:
+            payload = pyjwt.decode(token, AUTH_SECRET, algorithms=['HS256'])
+            request.user_email = payload.get('email')
+        except pyjwt.ExpiredSignatureError:
+            return jsonify({'error': 'Token expired'}), 401
+        except pyjwt.InvalidTokenError:
+            return jsonify({'error': 'Invalid token'}), 401
+        return f(*args, **kwargs)
+    return decorated
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -207,7 +244,45 @@ def generate_mock_flights(origins, destinations, departure_date, return_date=Non
 
     return flights
 
+
+@app.route('/api/auth/google', methods=['POST'])
+def auth_google():
+    """Verify Google OAuth token and return session JWT"""
+    if not GOOGLE_CLIENT_ID:
+        return jsonify({'error': 'Google OAuth not configured'}), 503
+    
+    data = request.get_json()
+    token = data.get('token')
+    if not token:
+        return jsonify({'error': 'Missing token'}), 400
+    
+    try:
+        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
+        email = idinfo.get('email', '').lower()
+        
+        if ALLOWED_EMAILS and email not in ALLOWED_EMAILS:
+            return jsonify({'error': f'Access denied for {email}'}), 403
+        
+        # Create session JWT
+        session_token = pyjwt.encode({
+            'email': email,
+            'name': idinfo.get('name', ''),
+            'exp': datetime.utcnow() + timedelta(days=7),
+        }, AUTH_SECRET, algorithm='HS256')
+        
+        return jsonify({
+            'token': session_token,
+            'user': {
+                'email': email,
+                'name': idinfo.get('name', ''),
+                'picture': idinfo.get('picture', ''),
+            }
+        })
+    except ValueError as e:
+        return jsonify({'error': f'Invalid token: {str(e)}'}), 401
+
 @app.route('/api/search', methods=['POST'])
+@require_auth
 def search_flights():
     """
     Search for flights based on provided parameters
@@ -306,6 +381,7 @@ def search_flights():
         }), 500
 
 @app.route('/api/search/stream', methods=['POST'])
+@require_auth
 def search_flights_stream():
     """
     Search for flights with streaming results (Server-Sent Events)
@@ -467,6 +543,7 @@ def get_destinations():
     })
 
 @app.route('/api/trip-planner', methods=['POST'])
+@require_auth
 def trip_planner():
     """
     Plan trips based on desired trip length
@@ -661,6 +738,7 @@ def debug_search():
 # =============================================================================
 
 @app.route('/api/realtime/flight/<flight_number>', methods=['GET'])
+@require_auth
 def get_realtime_flight_status(flight_number):
     """
     Get real-time status for a specific flight
@@ -683,6 +761,7 @@ def get_realtime_flight_status(flight_number):
     return jsonify({'flight': result})
 
 @app.route('/api/realtime/route', methods=['GET'])
+@require_auth
 def get_realtime_route_flights():
     """
     Get all real-time flights for a route
@@ -714,6 +793,7 @@ def get_realtime_route_flights():
     return jsonify(result)
 
 @app.route('/api/realtime/departures/<airport_code>', methods=['GET'])
+@require_auth
 def get_realtime_departures(airport_code):
     """
     Get all real-time departures from an airport
@@ -736,6 +816,7 @@ def get_realtime_departures(airport_code):
     return jsonify(result)
 
 @app.route('/api/realtime/arrivals/<airport_code>', methods=['GET'])
+@require_auth
 def get_realtime_arrivals(airport_code):
     """
     Get all real-time arrivals to an airport

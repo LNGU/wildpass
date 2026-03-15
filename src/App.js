@@ -4,6 +4,7 @@ import SearchForm from './components/SearchForm';
 import FlightResults from './components/FlightResults';
 import RealTimeFlights from './components/RealTimeFlights';
 import { searchFlightsStreaming, clearLocalCache, planTrip, healthCheck, getApiBaseUrl } from './services/api';
+import AuthGate from './components/AuthGate';
 
 function App() {
   const [searchParams, setSearchParams] = useState(null);
@@ -179,6 +180,7 @@ function App() {
   };
 
   return (
+    <AuthGate>
     <div className="App">
       <header className="header">
         <div className="container">
@@ -272,6 +274,7 @@ function App() {
         </div>
       </footer>
     </div>
+    </AuthGate>
   );
 }
 

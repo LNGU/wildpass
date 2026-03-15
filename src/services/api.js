@@ -1,3 +1,5 @@
+import { getAuthHeader } from './auth';
+
 // Use environment variable if available, otherwise default to local backend
 // NOTE: CRA replaces process.env.REACT_APP_* at build time with string literals.
 // Do NOT wrap in typeof process checks — it prevents the substitution from working.
@@ -172,6 +174,7 @@ export const searchFlightsStreaming = (searchParams, onFlights, onComplete, onEr
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeader(),
     },
     body: JSON.stringify(searchParams),
     signal: controller.signal,
@@ -309,7 +312,9 @@ export const searchFlights = async (searchParams) => {
 
 export const getDestinations = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/destinations`);
+    const response = await fetch(`${API_BASE_URL}/destinations`, {
+      headers: { ...getAuthHeader() },
+    });
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status} ${response.statusText}`);
@@ -341,6 +346,7 @@ export const clearServerCache = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/cache/clear`, {
       method: 'POST',
+      headers: { ...getAuthHeader() },
     });
 
     if (!response.ok) {
