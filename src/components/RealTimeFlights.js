@@ -249,7 +249,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
         <div className="flight-info-main">
           <div className="flight-number-cell">
             <span className="flight-number">{flight.flight_number}</span>
-            <span className="aircraft">{flight.aircraft || 'A320'}</span>
+            <span className="airline-name">{flight.airline?.name || flight.airline_name || ''}</span>
           </div>
           
           <div className="route-cell">
@@ -302,6 +302,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
       <div className="single-flight-header">
         <div className="flight-id">
           <span className="big-flight-number">{flight.flight_number}</span>
+          {flight.airline?.name && <span className="airline-name-large">{flight.airline.name}</span>}
           <span className={`status-badge large ${getStatusClass(flight.status)}`}>
             {formatStatus(flight)}
           </span>

@@ -422,6 +422,19 @@
   color: #64748b;
 }
 
+.airline-name {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.airline-name-large {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  font-weight: 400;
+  margin-left: 0.5rem;
+}
+
 .route-cell {
   display: flex;
   flex-direction: column;
