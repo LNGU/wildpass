@@ -4,6 +4,8 @@
   background: white;
   overflow: hidden;
   transition: all 0.3s ease;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .destination-card:hover {
