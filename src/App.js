@@ -258,7 +258,7 @@ function App() {
 
       <footer className="footer">
         <div className="container">
-          <p>&copy; 2026 WildPass. Flight data powered by Google Flights (SerpApi) &amp; AeroDataBox APIs.</p>
+          <p>&copy; 2026 WildPass. Flight data powered by Google Flights (SerpApi) &amp; FlightRadar24.</p>
           <button
             className="clear-cache-btn"
             onClick={() => {

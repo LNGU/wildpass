@@ -380,7 +380,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
     <div className="realtime-flights-container">
       <div className="realtime-header">
         <h2>✈️ {frontierOnly ? "Real-Time Frontier Flights" : "Real-Time Flights"}</h2>
-        <p className="realtime-subtitle">Live flight status powered by AeroDataBox</p>
+        <p className="realtime-subtitle">Live flight status powered by FlightRadar24</p>
         <div className="airline-toggle">
           <label className="toggle-switch">
             <input type="checkbox" checked={frontierOnly} onChange={() => setFrontierOnly(!frontierOnly)} />
@@ -533,7 +533,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
       )}
 
       <div className="realtime-footer">
-        <span className="api-note">🎫 Free tier: 300 requests/month • Real-time data via AeroDataBox</span>
+        <span className="api-note">Real-time data via FlightRadar24</span>
       </div>
     </div>
   );
