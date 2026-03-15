@@ -292,7 +292,24 @@
 }
 
 @media (max-width: 500px) {
-  .rtfd-modal { padding: 1.25rem; }
+  .rtfd-overlay { padding: 0; align-items: flex-end; }
+  .rtfd-modal {
+    padding: 1.25rem;
+    padding-top: 3.5rem;
+    max-height: 95vh;
+    border-radius: 16px 16px 0 0;
+    max-width: 100%;
+  }
+  .rtfd-close {
+    position: fixed;
+    top: calc(5vh + 0.5rem);
+    right: 0.75rem;
+    z-index: 1001;
+    width: 40px;
+    height: 40px;
+    font-size: 1.75rem;
+    background: rgba(0, 0, 0, 0.6);
+  }
   .rtfd-times { grid-template-columns: 1fr; }
   .rtfd-route { flex-direction: column; align-items: center; }
   .rtfd-arrow { transform: rotate(90deg); }
