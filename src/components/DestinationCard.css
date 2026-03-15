@@ -157,6 +157,9 @@
   padding: 1.5rem;
   background-color: #fafbfc;
   animation: slideDown 0.3s ease-out;
+  box-sizing: border-box;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 @keyframes slideDown {
@@ -172,11 +175,19 @@
 
 .flights-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
   gap: 1rem;
 }
 
 @media (max-width: 768px) {
+  .destination-summary {
+    padding: 1rem;
+  }
+
+  .destination-flights {
+    padding: 1rem;
+  }
+
   .destination-stats {
     gap: 1rem;
   }
