@@ -407,6 +407,20 @@
     padding: 1rem;
   }
 
+  .flight-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .price-section {
+    align-items: flex-start;
+  }
+
+  .price, .gowild-price {
+    font-size: 1.25rem;
+  }
+
   .blackout-badge {
     margin-left: 0.5rem;
     font-size: 0.65rem;
