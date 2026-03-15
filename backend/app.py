@@ -777,7 +777,7 @@ def get_realtime_route_flights():
     """
     origin = request.args.get('origin')
     destination = request.args.get('destination')
-    raw_airline = request.args.get('airline', 'F9')
+    raw_airline = request.args.get('airline', 'ALL')
     airline = None if raw_airline.upper() == 'ALL' else raw_airline
     
     if not origin or not destination:
@@ -805,7 +805,7 @@ def get_realtime_departures(airport_code):
     
     Note: Falls back to mock data if AeroDataBox API is unavailable
     """
-    raw_airline = request.args.get('airline', 'F9')
+    raw_airline = request.args.get('airline', 'ALL')
     airline = None if raw_airline.upper() == 'ALL' else raw_airline
     
     result = realtime_service.get_departures(airport_code.upper(), airline.upper() if airline else None)
@@ -828,7 +828,7 @@ def get_realtime_arrivals(airport_code):
     
     Note: Falls back to mock data if AeroDataBox API is unavailable
     """
-    raw_airline = request.args.get('airline', 'F9')
+    raw_airline = request.args.get('airline', 'ALL')
     airline = None if raw_airline.upper() == 'ALL' else raw_airline
     
     result = realtime_service.get_arrivals(airport_code.upper(), airline.upper() if airline else None)

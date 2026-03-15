@@ -67,7 +67,13 @@ def _generate_mock_flights(airport_code, flight_type='departures', count=8):
 
     for i in range(min(count, len(destinations) * 2)):
         dest_code, dest_name = destinations[i % len(destinations)]
-        flight_num = f"F9{random.randint(100, 2999)}"
+        mock_airlines = [
+            ('F9', 'Frontier Airlines'), ('UA', 'United Airlines'), ('AA', 'American Airlines'),
+            ('DL', 'Delta Air Lines'), ('WN', 'Southwest Airlines'), ('NK', 'Spirit Airlines'),
+            ('B6', 'JetBlue Airways'), ('AS', 'Alaska Airlines'),
+        ]
+        al_code, al_name = random.choice(mock_airlines)
+        flight_num = f"{al_code}{random.randint(100, 2999)}"
         status = random.choice(statuses)
 
         dep_offset = timedelta(minutes=random.randint(-60, 180))
@@ -95,6 +101,8 @@ def _generate_mock_flights(airport_code, flight_type='departures', count=8):
             'terminal': random.choice(['A', 'B', 'C']),
             'gate': f"{random.choice(['A', 'B', 'C'])}{random.randint(1, 50)}",
             'aircraft': random.choice(['A320', 'A321', 'A319']),
+            'airline': {'name': al_name, 'iata': al_code},
+            'airline_name': al_name,
         }
         flights.append(flight)
 
@@ -256,7 +264,7 @@ class RealTimeFlightService:
             print(f"⚠️ AeroDataBox exception: {e} — using mock data")
             return _generate_mock_single_flight(flight_num)
 
-    def get_route_flights(self, origin, destination, airline_code='F9'):
+    def get_route_flights(self, origin, destination, airline_code=None):
         """
         Get all flights for a specific route today.
 
@@ -264,7 +272,7 @@ class RealTimeFlightService:
         """
         def _mock():
             mock_flights = [
-                _generate_mock_single_flight(f"F9{random.randint(100, 2999)}")
+                _generate_mock_single_flight(f"{random.choice(["F9","UA","AA","DL","WN","NK"])}{random.randint(100, 2999)}")
                 for _ in range(random.randint(1, 3))
             ]
             return {
@@ -322,7 +330,7 @@ class RealTimeFlightService:
             print(f"⚠️ AeroDataBox exception: {e} — using mock data")
             return _mock()
 
-    def get_departures(self, airport_code, airline_code='F9'):
+    def get_departures(self, airport_code, airline_code=None):
         """
         Get all departing flights from an airport today.
 
@@ -388,7 +396,7 @@ class RealTimeFlightService:
             print(f"⚠️ AeroDataBox exception: {e} — using mock data")
             return _mock()
 
-    def get_arrivals(self, airport_code, airline_code='F9'):
+    def get_arrivals(self, airport_code, airline_code=None):
         """
         Get all arriving flights to an airport today.
 
@@ -497,8 +505,8 @@ class RealTimeFlightService:
             'flight_number': fn,
             'flight_icao': flight_data.get('callSign'),
             'airline': {
-                'name': flight_data.get('airline', {}).get('name', 'Frontier Airlines'),
-                'iata': flight_data.get('airline', {}).get('iata', 'F9'),
+                'name': flight_data.get('airline', {}).get('name', 'Unknown Airline'),
+                'iata': flight_data.get('airline', {}).get('iata', ''),
             },
             'status': status,
             'status_display': _get_status_display(status),
