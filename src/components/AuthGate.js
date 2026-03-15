@@ -56,7 +56,7 @@ function AuthGate({ children }) {
     return (
       <>
         <div style={{
-          position: 'fixed', top: 12, right: 16, zIndex: 9999,
+          position: 'absolute', top: 12, right: 16, zIndex: 9999,
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
           {user?.picture && (
