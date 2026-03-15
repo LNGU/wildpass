@@ -145,9 +145,9 @@ realtime_service = RealTimeFlightService()
 # Development mode — returns mock data when API keys are not configured
 DEV_MODE = os.environ.get('DEV_MODE', 'false' if FLIGHT_API_ENABLED else 'true').lower() == 'true'
 
-def get_cache_key(origins, destinations, departure_date, return_date, trip_type):
+def get_cache_key(origins, destinations, departure_date, return_date, trip_type, airline_filter='F9'):
     """Generate a unique cache key for the search parameters"""
-    return f"flights_{','.join(sorted(origins))}_{','.join(sorted(destinations))}_{departure_date}_{return_date}_{trip_type}"
+    return f"flights_{','.join(sorted(origins))}_{','.join(sorted(destinations))}_{departure_date}_{return_date}_{trip_type}_{airline_filter or 'ALL'}"
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -316,7 +316,7 @@ def search_flights():
             }), 400
 
         # Check cache first
-        cache_key = get_cache_key(origins, destinations, departure_date, return_date, trip_type)
+        cache_key = get_cache_key(origins, destinations, departure_date, return_date, trip_type, airline_filter)
         cached_result = flask_cache.get(cache_key)
 
         if cached_result is not None:
