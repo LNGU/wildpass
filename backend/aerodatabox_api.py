@@ -549,6 +549,10 @@ class RealTimeFlightService:
 
         return {
             'flight_number': fn,
+            'airline': {
+                'name': flight_data.get('airline', {}).get('name', ''),
+                'iata': flight_data.get('airline', {}).get('iata', ''),
+            },
             'origin': dep_airport.get('iata', 'N/A'),
             'origin_city': dep_airport.get('name', dep_airport.get('iata', '')),
             'destination': arr_airport.get('iata', 'N/A'),
@@ -580,6 +584,10 @@ class RealTimeFlightService:
 
         return {
             'flight_number': fn,
+            'airline': {
+                'name': flight_data.get('airline', {}).get('name', ''),
+                'iata': flight_data.get('airline', {}).get('iata', ''),
+            },
             'origin': dep_airport.get('iata', 'N/A'),
             'origin_city': dep_airport.get('name', dep_airport.get('iata', '')),
             'destination': arr_airport.get('iata', 'N/A'),
