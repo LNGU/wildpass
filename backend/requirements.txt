@@ -7,3 +7,4 @@ python-dotenv==1.0.0
 gunicorn==21.2.0
 google-auth==2.29.0
 PyJWT==2.8.0
+FlightRadarAPI==1.4.0

@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from flask_caching import Cache
 from serpapi_flights import SerpApiFlightSearch
-from aerodatabox_api import RealTimeFlightService
+from flightradar_api import RealTimeFlightService
 from trip_planner import find_optimal_trips
 from gowild_blackout import GoWildBlackoutDates
 from blackout_updater import update_if_needed, get_blackout_data
@@ -104,7 +104,7 @@ def index():
     return jsonify({
         'status': 'ok',
         'service': 'WildPass Flight Search API',
-        'version': '2.1.0'  # SerpApi Google Flights + AeroDataBox APIs
+        'version': '2.1.0'  # SerpApi Google Flights + FlightRadar24 APIs
     })
 
 # Health check at /health for Render
@@ -139,7 +139,7 @@ try:
 except ValueError as e:
     print(f"Warning: SerpApi not configured: {e}")
 
-# Initialize Real-Time Flight Service (AeroDataBox via RapidAPI)
+# Initialize Real-Time Flight Service (FlightRadar24 (no API key needed))
 realtime_service = RealTimeFlightService()
 
 # Development mode — returns mock data when API keys are not configured
@@ -158,7 +158,7 @@ def health_check():
         'flight_api_enabled': FLIGHT_API_ENABLED,
         'dev_mode': DEV_MODE,
         'realtime_service_enabled': realtime_service.is_configured(),
-        'note': 'Flight search: SerpApi Google Flights | Real-time status: AeroDataBox'
+        'note': 'Flight search: SerpApi Google Flights | Real-time status: FlightRadar24'
     })
 
 @app.route('/api/debug/api-test', methods=['GET'])
@@ -734,7 +734,7 @@ def debug_search():
         }), 500
 
 # =============================================================================
-# REAL-TIME FLIGHT STATUS ENDPOINTS (powered by AeroDataBox)
+# REAL-TIME FLIGHT STATUS ENDPOINTS (powered by FlightRadar24)
 # =============================================================================
 
 @app.route('/api/realtime/flight/<flight_number>', methods=['GET'])
@@ -751,7 +751,7 @@ def get_realtime_flight_status(flight_number):
     - Delays
     - Gate and terminal information
     
-    Note: Falls back to mock data if AeroDataBox API is unavailable
+    Note: Falls back to mock data if FlightRadar24 API is unavailable
     """
     result = realtime_service.get_flight_status(flight_number)
     
@@ -773,7 +773,7 @@ def get_realtime_route_flights():
     
     Example: GET /api/realtime/route?origin=DEN&destination=LAS&airline=F9
     
-    Note: Falls back to mock data if AeroDataBox API is unavailable
+    Note: Falls back to mock data if FlightRadar24 API is unavailable
     """
     origin = request.args.get('origin')
     destination = request.args.get('destination')
@@ -803,7 +803,7 @@ def get_realtime_departures(airport_code):
     
     Example: GET /api/realtime/departures/DEN?airline=F9
     
-    Note: Falls back to mock data if AeroDataBox API is unavailable
+    Note: Falls back to mock data if FlightRadar24 API is unavailable
     """
     raw_airline = request.args.get('airline', 'ALL')
     airline = None if raw_airline.upper() == 'ALL' else raw_airline
@@ -826,7 +826,7 @@ def get_realtime_arrivals(airport_code):
     
     Example: GET /api/realtime/arrivals/LAS?airline=F9
     
-    Note: Falls back to mock data if AeroDataBox API is unavailable
+    Note: Falls back to mock data if FlightRadar24 API is unavailable
     """
     raw_airline = request.args.get('airline', 'ALL')
     airline = None if raw_airline.upper() == 'ALL' else raw_airline
