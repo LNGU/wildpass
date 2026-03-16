@@ -76,7 +76,7 @@ function PriceTracker({ apiBaseUrl }) {
   return (
     <div className="price-tracker-container">
       <div className="price-tracker-header">
-        <h2>ICN to SEA Price Tracker</h2>
+        <h2>ICN to SEA Price Tracker (Round-Trip)</h2>
         <p className="price-subtitle">Nonstop flights from Seoul Incheon to Seattle</p>
       </div>
 

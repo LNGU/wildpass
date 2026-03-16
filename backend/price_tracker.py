@@ -44,7 +44,7 @@ def scrape_prices(search_dates=None):
         try:
             result = get_flights(
                 flight_data=[FlightData(date=date, from_airport='ICN', to_airport='SEA')],
-                trip='one-way',
+                trip='round-trip',
                 passengers=Passengers(adults=1),
                 seat='economy',
                 max_stops=0,
