@@ -170,7 +170,8 @@ class RealTimeFlightService:
                     live_flights = self._api.get_flights(airline=airline_icao)
                     for f in live_flights:
                         if f.number and f.number.replace(' ', '') == flight_num:
-                            self._api.get_flight_details(f)
+                            details = self._api.get_flight_details(f)
+                            f.set_flight_details(details)
                             return self._format_live_flight(f, flight_num)
                 except Exception as e:
                     print(f"⚠️ FlightRadar24 get_flights error: {e}")
