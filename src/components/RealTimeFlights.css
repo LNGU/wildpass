@@ -238,6 +238,24 @@
   font-size: 0.75rem;
 }
 
+.favorite-star {
+  margin-left: auto;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: #4a5568;
+  transition: all 0.2s;
+  padding: 0 0.25rem;
+}
+
+.favorite-star:hover {
+  color: #fbbf24;
+  transform: scale(1.2);
+}
+
+.favorite-star.active {
+  color: #fbbf24;
+}
+
 .airport-list::-webkit-scrollbar {
   width: 6px;
 }

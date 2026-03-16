@@ -6,7 +6,9 @@ import RealTimeFlightDetail from './RealTimeFlightDetail';
 /* global L */
 
 function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
-  const [airport, setAirport] = useState('DEN');
+  const [airport, setAirport] = useState(() => {
+    return localStorage.getItem('wildpass_favorite_airport') || 'DEN';
+  });
   const [viewMode, setViewMode] = useState('departures'); // 'departures' or 'arrivals'
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -14,7 +16,21 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [flightNumber, setFlightNumber] = useState('');
   const [singleFlight, setSingleFlight] = useState(null);
+  const [favoriteAirport, setFavoriteAirport] = useState(() => {
+    return localStorage.getItem('wildpass_favorite_airport') || '';
+  });
   const [airportFilter, setAirportFilter] = useState('');
+
+  const toggleFavorite = (code, e) => {
+    e.stopPropagation();
+    if (favoriteAirport === code) {
+      setFavoriteAirport('');
+      localStorage.removeItem('wildpass_favorite_airport');
+    } else {
+      setFavoriteAirport(code);
+      localStorage.setItem('wildpass_favorite_airport', code);
+    }
+  };
   const [isMockData, setIsMockData] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedFlight, setSelectedFlight] = useState(null);
@@ -555,6 +571,13 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
                         <span className="airport-code-label">{apt.code}</span>
                         <span className="airport-name-label">{apt.name}</span>
                         {apt.hub && <span className="hub-star">⭐</span>}
+                        <span
+                          className={`favorite-star ${favoriteAirport === apt.code ? 'active' : ''}`}
+                          onClick={(e) => toggleFavorite(apt.code, e)}
+                          title={favoriteAirport === apt.code ? 'Remove as default' : 'Set as default airport'}
+                        >
+                          {favoriteAirport === apt.code ? '★' : '☆'}
+                        </span>
                       </li>
                     ))}
                     {filteredAirports.length === 0 && (
