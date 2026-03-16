@@ -3,6 +3,8 @@ import { getAuthHeader } from '../services/auth';
 import './RealTimeFlights.css';
 import RealTimeFlightDetail from './RealTimeFlightDetail';
 
+/* global L */
+
 function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
   const [airport, setAirport] = useState('DEN');
   const [viewMode, setViewMode] = useState('departures'); // 'departures' or 'arrivals'
@@ -302,79 +304,137 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
     );
   };
 
-  const renderSingleFlight = (flight) => (
-    <div className="single-flight-card">
-      <div className="single-flight-header">
-        <div className="flight-id">
-          <span className="big-flight-number">{flight.flight_number}</span>
-          {flight.airline?.name && <span className="airline-name-large">{flight.airline.name}</span>}
-          <span className={`status-badge large ${getStatusClass(flight.status)}`}>
-            {formatStatus(flight)}
-          </span>
+  const getTimeDisplay = (timeObj) => {
+    if (!timeObj) return '--:--';
+    if (typeof timeObj === 'string') return timeObj;
+    if (timeObj.local) return timeObj.local;
+    if (timeObj.utc) return timeObj.utc;
+    return '--:--';
+  };
+
+  const SingleFlightView = ({ flight }) => {
+    const mapRef = useRef(null);
+    const mapInstanceRef = useRef(null);
+    const liveInfo = flight.live;
+
+    useEffect(() => {
+      if (!liveInfo || !liveInfo.latitude || !mapRef.current || mapInstanceRef.current) return;
+      if (typeof L === 'undefined') return;
+
+      const map = L.map(mapRef.current, {
+        center: [liveInfo.latitude, liveInfo.longitude],
+        zoom: 6,
+        zoomControl: true,
+        attributionControl: false,
+      });
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+      }).addTo(map);
+
+      const planeIcon = L.divIcon({
+        html: '<div style="font-size:28px;transform:rotate(' + (liveInfo.heading || 0) + 'deg)">✈️</div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+        className: 'plane-marker',
+      });
+      L.marker([liveInfo.latitude, liveInfo.longitude], { icon: planeIcon }).addTo(map);
+      mapInstanceRef.current = map;
+
+      return () => {
+        map.remove();
+        mapInstanceRef.current = null;
+      };
+    }, [liveInfo]);
+
+    return (
+      <div className="single-flight-card">
+        <div className="single-flight-header">
+          <div className="flight-id">
+            <span className="big-flight-number">{flight.flight_number}</span>
+            {flight.airline?.name && <span className="airline-name-large">{flight.airline.name}</span>}
+            <span className={`status-badge large ${getStatusClass(flight.status)}`}>
+              {formatStatus(flight)}
+            </span>
+          </div>
+          {flight.delay && flight.delay !== 'On time' && (
+            <span className="delay-badge large">{flight.delay}</span>
+          )}
         </div>
-        {flight.delay && flight.delay !== 'On time' && (
-          <span className="delay-badge large">{flight.delay}</span>
+
+        {liveInfo && liveInfo.latitude && (
+          <div className="rtfd-live-section" style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ color: '#22c55e', margin: '0 0 0.75rem 0' }}>📡 Live Position</h4>
+            <div ref={mapRef} style={{ width: '100%', height: '220px', borderRadius: '10px', overflow: 'hidden', marginBottom: '0.75rem' }}></div>
+            <div className="rtfd-live-stats">
+              <div><span>Altitude</span><strong>{liveInfo.altitude ? liveInfo.altitude.toLocaleString() : '—'} ft</strong></div>
+              <div><span>Speed</span><strong>{liveInfo.ground_speed || '—'} kts</strong></div>
+              <div><span>Heading</span><strong>{liveInfo.heading || '—'}°</strong></div>
+              {liveInfo.vertical_speed != null && (
+                <div><span>V/S</span><strong>{liveInfo.vertical_speed} ft/min</strong></div>
+              )}
+            </div>
+          </div>
         )}
-      </div>
-      
-      <div className="single-flight-route">
-        <div className="route-point origin">
-          <span className="airport-code">{flight.origin}</span>
-          <span className="city">{flight.origin_city}</span>
-          <div className="times">
-            <div className="time-row">
-              <span className="label">Scheduled:</span>
-              <span className="value">{flight.departure?.scheduled?.local || '--:--'}</span>
+
+        <div className="single-flight-route">
+          <div className="route-point origin">
+            <span className="airport-code">{flight.origin}</span>
+            <span className="city">{flight.origin_city}</span>
+            <div className="times">
+              <div className="time-row">
+                <span className="label">Scheduled:</span>
+                <span className="value">{getTimeDisplay(flight.departure?.scheduled)}</span>
+              </div>
+              {(flight.departure?.actual || flight.departure?.estimated) && (
+                <div className="time-row actual">
+                  <span className="label">{flight.departure?.actual ? 'Actual:' : 'Est:'}</span>
+                  <span className="value">{getTimeDisplay(flight.departure?.actual || flight.departure?.estimated)}</span>
+                </div>
+              )}
             </div>
-            {flight.departure?.actual?.local && (
-              <div className="time-row actual">
-                <span className="label">Actual:</span>
-                <span className="value">{flight.departure.actual.local}</span>
+            {(flight.departure?.terminal || flight.departure?.gate) && (
+              <div className="gate-info">
+                {flight.departure?.terminal && <span>Terminal {flight.departure.terminal}</span>}
+                {flight.departure?.gate && <span>Gate {flight.departure.gate}</span>}
               </div>
             )}
           </div>
-          {(flight.departure?.terminal || flight.departure?.gate) && (
-            <div className="gate-info">
-              {flight.departure?.terminal && <span>Terminal {flight.departure.terminal}</span>}
-              {flight.departure?.gate && <span>Gate {flight.departure.gate}</span>}
+          
+          <div className="route-arrow">
+            <span className="plane-icon">✈️</span>
+            <div className="flight-line"></div>
+          </div>
+          
+          <div className="route-point destination">
+            <span className="airport-code">{flight.destination}</span>
+            <span className="city">{flight.destination_city}</span>
+            <div className="times">
+              <div className="time-row">
+                <span className="label">Scheduled:</span>
+                <span className="value">{getTimeDisplay(flight.arrival?.scheduled)}</span>
+              </div>
+              {(flight.arrival?.actual || flight.arrival?.estimated) && (
+                <div className="time-row actual">
+                  <span className="label">{flight.arrival?.actual ? 'Actual:' : 'Est:'}</span>
+                  <span className="value">{getTimeDisplay(flight.arrival?.actual || flight.arrival?.estimated)}</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        
-        <div className="route-arrow">
-          <span className="plane-icon">✈️</span>
-          <div className="flight-line"></div>
-        </div>
-        
-        <div className="route-point destination">
-          <span className="airport-code">{flight.destination}</span>
-          <span className="city">{flight.destination_city}</span>
-          <div className="times">
-            <div className="time-row">
-              <span className="label">Scheduled:</span>
-              <span className="value">{flight.arrival?.scheduled?.local || '--:--'}</span>
-            </div>
-            {flight.arrival?.actual?.local && (
-              <div className="time-row actual">
-                <span className="label">Actual:</span>
-                <span className="value">{flight.arrival.actual.local}</span>
+            {(flight.arrival?.terminal || flight.arrival?.gate) && (
+              <div className="gate-info">
+                {flight.arrival?.terminal && <span>Terminal {flight.arrival.terminal}</span>}
+                {flight.arrival?.gate && <span>Gate {flight.arrival.gate}</span>}
               </div>
             )}
           </div>
-          {(flight.arrival?.terminal || flight.arrival?.gate) && (
-            <div className="gate-info">
-              {flight.arrival?.terminal && <span>Terminal {flight.arrival.terminal}</span>}
-              {flight.arrival?.gate && <span>Gate {flight.arrival.gate}</span>}
-            </div>
-          )}
         </div>
+        
+        <button className="back-button" onClick={() => { setSingleFlight(null); fetchFlights(); }}>
+          ← Back to Flight Board
+        </button>
       </div>
-      
-      <button className="back-button" onClick={() => { setSingleFlight(null); fetchFlights(); }}>
-        ← Back to Flight Board
-      </button>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="realtime-flights-container">
@@ -501,7 +561,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
         </div>
       )}
       
-      {!loading && singleFlight && renderSingleFlight(singleFlight)}
+      {!loading && singleFlight && <SingleFlightView flight={singleFlight} />}
       
       {!loading && !singleFlight && flights.length > 0 && (
         <div className="flight-board">
