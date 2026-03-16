@@ -245,7 +245,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
     { code: 'ABQ', name: 'Albuquerque' },
     { code: 'ALB', name: 'Albany' },
     { code: 'ANC', name: 'Anchorage' },
-    { code: 'ATL', name: 'Atlanta', hub: true },
+    { code: 'ATL', name: 'Atlanta' },
     { code: 'AUS', name: 'Austin' },
     { code: 'BWI', name: 'Baltimore' },
     { code: 'BHM', name: 'Birmingham' },
@@ -264,7 +264,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
     { code: 'CMH', name: 'Columbus' },
     { code: 'DFW', name: 'Dallas/Fort Worth' },
     { code: 'DAL', name: 'Dallas Love Field' },
-    { code: 'DEN', name: 'Denver (Hub)', hub: true },
+    { code: 'DEN', name: 'Denver (Hub)' },
     { code: 'DSM', name: 'Des Moines' },
     { code: 'DTW', name: 'Detroit' },
     { code: 'ELP', name: 'El Paso' },
@@ -284,7 +284,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
     { code: 'MCI', name: 'Kansas City' },
     { code: 'LIH', name: 'Kauai' },
     { code: 'KOA', name: 'Kona' },
-    { code: 'LAS', name: 'Las Vegas', hub: true },
+    { code: 'LAS', name: 'Las Vegas' },
     { code: 'LIT', name: 'Little Rock' },
     { code: 'LAX', name: 'Los Angeles' },
     { code: 'SJD', name: 'Los Cabos' },
@@ -307,11 +307,11 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
     { code: 'OMA', name: 'Omaha' },
     { code: 'ONT', name: 'Ontario CA' },
     { code: 'SNA', name: 'Orange County' },
-    { code: 'MCO', name: 'Orlando', hub: true },
+    { code: 'MCO', name: 'Orlando' },
     { code: 'PSP', name: 'Palm Springs' },
     { code: 'PNS', name: 'Pensacola' },
     { code: 'PHL', name: 'Philadelphia' },
-    { code: 'PHX', name: 'Phoenix', hub: true },
+    { code: 'PHX', name: 'Phoenix' },
     { code: 'PIT', name: 'Pittsburgh' },
     { code: 'PDX', name: 'Portland' },
     { code: 'PVD', name: 'Providence' },
@@ -568,7 +568,6 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
                       >
                         <span className="airport-code-label">{apt.code}</span>
                         <span className="airport-name-label">{apt.name}</span>
-                        {apt.hub && <span className="hub-star">⭐</span>}
                         <span
                           className={`favorite-star ${favoriteAirport === apt.code ? 'active' : ''}`}
                           onClick={(e) => toggleFavorite(apt.code, e)}
