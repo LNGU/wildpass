@@ -35,3 +35,4 @@ dist/
 .vercel
 .env*.local
 .flask_cache/
+backend/.venv/
