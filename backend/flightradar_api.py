@@ -324,31 +324,63 @@ class RealTimeFlightService:
         else:
             status = 'scheduled'
 
+        # Extract city/airport names from details if available
+        origin_name = getattr(flight, 'origin_airport_name', None) or AIRPORT_NAMES.get(origin_code, origin_code)
+        dest_name = getattr(flight, 'destination_airport_name', None) or AIRPORT_NAMES.get(dest_code, dest_code)
+
+        # Extract time details
+        time_details = getattr(flight, 'time_details', {}) or {}
+        sched_dep_ts = (time_details.get('scheduled', {}) or {}).get('departure')
+        sched_arr_ts = (time_details.get('scheduled', {}) or {}).get('arrival')
+        est_dep_ts = (time_details.get('estimated', {}) or {}).get('departure')
+        est_arr_ts = (time_details.get('estimated', {}) or {}).get('arrival')
+        act_dep_ts = (time_details.get('real', {}) or {}).get('departure')
+        act_arr_ts = (time_details.get('real', {}) or {}).get('arrival')
+
+        def _ts_to_local(ts):
+            if not ts:
+                return None
+            try:
+                return datetime.fromtimestamp(ts).strftime('%-I:%M %p')
+            except Exception:
+                return None
+
+        # Gate/terminal from details
+        origin_terminal = getattr(flight, 'origin_airport_terminal', None)
+        origin_gate = getattr(flight, 'origin_airport_gate', None)
+        dest_terminal = getattr(flight, 'destination_airport_terminal', None)
+        dest_gate = getattr(flight, 'destination_airport_gate', None)
+        dest_baggage = getattr(flight, 'destination_airport_baggage', None)
+
         return {
             'flight_number': flight_number,
             'flight_icao': flight.callsign,
             'airline': {
-                'name': self._get_airline_name(flight.airline_iata or ''),
+                'name': getattr(flight, 'airline_name', None) or self._get_airline_name(flight.airline_iata or ''),
                 'iata': flight.airline_iata or '',
             },
             'status': status,
             'status_display': _get_status_display(status),
             'origin': origin_code,
-            'origin_city': AIRPORT_NAMES.get(origin_code, origin_code),
+            'origin_city': origin_name,
             'destination': dest_code,
-            'destination_city': AIRPORT_NAMES.get(dest_code, dest_code),
+            'destination_city': dest_name,
             'departure': {
-                'airport': AIRPORT_NAMES.get(origin_code, origin_code),
+                'airport': origin_name,
                 'airport_code': origin_code,
-                'terminal': None, 'gate': None,
-                'scheduled': None, 'estimated': None, 'actual': None,
+                'terminal': origin_terminal, 'gate': origin_gate,
+                'scheduled': _ts_to_local(sched_dep_ts),
+                'estimated': _ts_to_local(est_dep_ts),
+                'actual': _ts_to_local(act_dep_ts),
                 'delay_minutes': None, 'delay_display': None,
             },
             'arrival': {
-                'airport': AIRPORT_NAMES.get(dest_code, dest_code),
+                'airport': dest_name,
                 'airport_code': dest_code,
-                'terminal': None, 'gate': None, 'baggage': None,
-                'scheduled': None, 'estimated': None, 'actual': None,
+                'terminal': dest_terminal, 'gate': dest_gate, 'baggage': dest_baggage,
+                'scheduled': _ts_to_local(sched_arr_ts),
+                'estimated': _ts_to_local(est_arr_ts),
+                'actual': _ts_to_local(act_arr_ts),
                 'delay_minutes': None, 'delay_display': None,
             },
             'live': {
@@ -359,7 +391,7 @@ class RealTimeFlightService:
                 'heading': flight.heading,
                 'vertical_speed': flight.vertical_speed,
             } if flight.latitude else None,
-            'aircraft': flight.aircraft_code or 'N/A',
+            'aircraft': getattr(flight, 'aircraft_model', None) or flight.aircraft_code or 'N/A',
             'registration': flight.registration,
             'flight_date': datetime.now().strftime('%Y-%m-%d'),
             'mock_data': False,
