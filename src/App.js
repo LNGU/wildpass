@@ -3,6 +3,7 @@ import './App.css';
 import SearchForm from './components/SearchForm';
 import FlightResults from './components/FlightResults';
 import RealTimeFlights from './components/RealTimeFlights';
+import PriceTracker from './components/PriceTracker';
 import { searchFlightsStreaming, clearLocalCache, planTrip, healthCheck, getApiBaseUrl } from './services/api';
 import AuthGate from './components/AuthGate';
 
@@ -251,7 +252,10 @@ function App() {
           )}
             </>
           ) : (
-            <RealTimeFlights apiBaseUrl={getApiBaseUrl()} frontierOnly={frontierOnly} setFrontierOnly={setFrontierOnly} />
+            <>
+              <RealTimeFlights apiBaseUrl={getApiBaseUrl()} frontierOnly={frontierOnly} setFrontierOnly={setFrontierOnly} />
+              <PriceTracker apiBaseUrl={getApiBaseUrl()} />
+            </>
           )}
         </div>
       </main>

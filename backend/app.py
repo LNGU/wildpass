@@ -879,6 +879,29 @@ def refresh_blackout_dates():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# =============================================================================
+# PRICE TRACKER ENDPOINTS
+# =============================================================================
+
+@app.route('/api/prices/icn-sea', methods=['GET'])
+@require_auth
+def get_icn_sea_prices():
+    """Get stored ICN-SEA price history."""
+    from price_tracker import load_prices
+    data = load_prices()
+    return jsonify(data)
+
+@app.route('/api/prices/icn-sea/scrape', methods=['POST'])
+@require_auth
+def scrape_icn_sea_prices():
+    """Trigger a fresh ICN-SEA price scrape."""
+    from price_tracker import run_daily_scrape
+    try:
+        snapshot = run_daily_scrape()
+        return jsonify({'message': 'Scrape complete', 'snapshot': snapshot})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Run on port 5001 locally (5000 is often used by macOS AirPlay)
     # In production, PORT is set by the hosting platform

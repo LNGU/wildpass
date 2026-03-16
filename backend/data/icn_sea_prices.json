@@ -1,0 +1,84 @@
+{
+  "snapshots": [
+    {
+      "scraped_at": "2026-03-15T23:33:01.473809",
+      "route": "ICN-SEA",
+      "dates": [
+        {
+          "travel_date": "2026-04-14",
+          "lowest_price": 612,
+          "flights": [
+            {
+              "airline": "Asiana Airlines",
+              "departure": "9:00 PM on Tue, Apr 14",
+              "arrival": "2:55 PM on Tue, Apr 14",
+              "duration": "9 hr 55 min",
+              "price": "$612",
+              "price_usd": 612
+            },
+            {
+              "airline": "Delta",
+              "departure": "7:00 PM on Tue, Apr 14",
+              "arrival": "1:07 PM on Tue, Apr 14",
+              "duration": "10 hr 7 min",
+              "price": "$692",
+              "price_usd": 692
+            },
+            {
+              "airline": "Korean Air",
+              "departure": "4:40 PM on Tue, Apr 14",
+              "arrival": "10:40 AM on Tue, Apr 14",
+              "duration": "10 hr",
+              "price": "$773",
+              "price_usd": 773
+            }
+          ]
+        },
+        {
+          "travel_date": "2026-05-14",
+          "lowest_price": 612,
+          "flights": [
+            {
+              "airline": "",
+              "departure": "",
+              "arrival": "",
+              "duration": "",
+              "price": "$612",
+              "price_usd": 612
+            }
+          ]
+        },
+        {
+          "travel_date": "2026-06-13",
+          "lowest_price": 753,
+          "flights": [
+            {
+              "airline": "Korean Air",
+              "departure": "4:40 PM on Sat, Jun 13",
+              "arrival": "11:00 AM on Sat, Jun 13",
+              "duration": "10 hr 20 min",
+              "price": "$753",
+              "price_usd": 753
+            },
+            {
+              "airline": "Delta",
+              "departure": "7:00 PM on Sat, Jun 13",
+              "arrival": "1:25 PM on Sat, Jun 13",
+              "duration": "10 hr 25 min",
+              "price": "$753",
+              "price_usd": 753
+            },
+            {
+              "airline": "Alaska",
+              "departure": "7:35 PM on Sat, Jun 13",
+              "arrival": "2:05 PM on Sat, Jun 13",
+              "duration": "10 hr 30 min",
+              "price": "$761",
+              "price_usd": 761
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
