@@ -315,8 +315,43 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
   const SingleFlightView = ({ flight }) => {
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
-    const liveInfo = flight.live;
+    const markerRef = useRef(null);
+    const [liveInfo, setLiveInfo] = useState(flight.live);
+    const [lastPoll, setLastPoll] = useState(null);
 
+    // Poll live position every 15 seconds for active flights
+    useEffect(() => {
+      if (flight.status !== 'active') return;
+
+      const pollLive = async () => {
+        try {
+          const res = await fetch(`${apiBaseUrl}/realtime/flight/${flight.flight_number}/live`, {
+            headers: { ...getAuthHeader() },
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.live && data.latitude) {
+            setLiveInfo({
+              latitude: data.latitude,
+              longitude: data.longitude,
+              altitude: data.altitude,
+              ground_speed: data.ground_speed,
+              heading: data.heading,
+              vertical_speed: data.vertical_speed,
+            });
+            setLastPoll(new Date());
+          }
+        } catch (e) {
+          // silent
+        }
+      };
+
+      pollLive(); // initial fetch
+      const interval = setInterval(pollLive, 15000);
+      return () => clearInterval(interval);
+    }, [flight.flight_number, flight.status, apiBaseUrl]);
+
+    // Init map once
     useEffect(() => {
       if (!liveInfo || !liveInfo.latitude || !mapRef.current || mapInstanceRef.current) return;
       if (typeof L === 'undefined') return;
@@ -337,13 +372,30 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
         iconAnchor: [15, 15],
         className: 'plane-marker',
       });
-      L.marker([liveInfo.latitude, liveInfo.longitude], { icon: planeIcon }).addTo(map);
+      markerRef.current = L.marker([liveInfo.latitude, liveInfo.longitude], { icon: planeIcon }).addTo(map);
       mapInstanceRef.current = map;
 
       return () => {
         map.remove();
         mapInstanceRef.current = null;
+        markerRef.current = null;
       };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [!!liveInfo]);
+
+    // Update marker position on poll
+    useEffect(() => {
+      if (!liveInfo || !liveInfo.latitude || !mapInstanceRef.current || !markerRef.current) return;
+
+      const newLatLng = [liveInfo.latitude, liveInfo.longitude];
+      markerRef.current.setLatLng(newLatLng);
+      markerRef.current.setIcon(L.divIcon({
+        html: '<div style="font-size:28px;transform:rotate(' + (liveInfo.heading || 0) + 'deg)">✈️</div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+        className: 'plane-marker',
+      }));
+      mapInstanceRef.current.panTo(newLatLng);
     }, [liveInfo]);
 
     return (
@@ -363,7 +415,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
 
         {liveInfo && liveInfo.latitude && (
           <div className="rtfd-live-section" style={{ marginBottom: '1.5rem' }}>
-            <h4 style={{ color: '#22c55e', margin: '0 0 0.75rem 0' }}>📡 Live Position</h4>
+            <h4 style={{ color: '#22c55e', margin: '0 0 0.75rem 0' }}>📡 Live Position {lastPoll && <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 400, marginLeft: '0.5rem' }}>Updated {lastPoll.toLocaleTimeString()}</span>}</h4>
             <div ref={mapRef} style={{ width: '100%', height: '220px', borderRadius: '10px', overflow: 'hidden', marginBottom: '0.75rem' }}></div>
             <div className="rtfd-live-stats">
               <div><span>Altitude</span><strong>{liveInfo.altitude ? liveInfo.altitude.toLocaleString() : '—'} ft</strong></div>
