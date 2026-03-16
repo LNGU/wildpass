@@ -264,7 +264,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
     { code: 'CMH', name: 'Columbus' },
     { code: 'DFW', name: 'Dallas/Fort Worth' },
     { code: 'DAL', name: 'Dallas Love Field' },
-    { code: 'DEN', name: 'Denver (Hub)' },
+    { code: 'DEN', name: 'Denver' },
     { code: 'DSM', name: 'Des Moines' },
     { code: 'DTW', name: 'Detroit' },
     { code: 'ELP', name: 'El Paso' },
