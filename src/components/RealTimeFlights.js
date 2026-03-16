@@ -517,6 +517,22 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
       </div>
       
       <div className="realtime-controls">
+        <div className="search-flight-section">
+          <input
+            type="text"
+            placeholder={frontierOnly ? "Flight # (e.g., 1234 or F91234)" : "Flight # (e.g., AA1234, UA567)"}
+            value={flightNumber}
+            onChange={(e) => setFlightNumber(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && searchFlight()}
+            className="flight-search-input"
+          />
+          <button onClick={searchFlight} className="search-flight-btn">
+            🔍 Track Flight
+          </button>
+        </div>
+        
+        <div className="divider">or view flight board</div>
+        
         <div className="board-controls">
           <div className="airport-selector">
             <label>Airport:</label>
@@ -647,20 +663,6 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
           onClose={() => setSelectedFlight(null)}
         />
       )}
-
-      <div className="search-flight-section" style={{ marginTop: '1.5rem' }}>
-        <input
-          type="text"
-          placeholder={frontierOnly ? "Track a flight (e.g., 1234 or F91234)" : "Track a flight (e.g., AA1234, UA567)"}
-          value={flightNumber}
-          onChange={(e) => setFlightNumber(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && searchFlight()}
-          className="flight-search-input"
-        />
-        <button onClick={searchFlight} className="search-flight-btn">
-          Track
-        </button>
-      </div>
 
       <div className="realtime-footer">
         <span className="api-note">Real-time data via FlightRadar24</span>
