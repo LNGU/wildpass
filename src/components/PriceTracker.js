@@ -80,6 +80,10 @@ function PriceTracker({ apiBaseUrl }) {
         <p className="price-subtitle">Nonstop flights from Seoul Incheon to Seattle</p>
       </div>
 
+      <button className="scrape-button" onClick={triggerScrape} disabled={scraping}>
+        {scraping ? 'Checking prices...' : 'Refresh Prices'}
+      </button>
+
       {loading && <div className="price-loading">Loading price data...</div>}
       {error && <div className="price-error">{error}</div>}
 
@@ -156,9 +160,6 @@ function PriceTracker({ apiBaseUrl }) {
         </div>
       )}
 
-      <button className="scrape-button" onClick={triggerScrape} disabled={scraping}>
-        {scraping ? 'Checking prices...' : 'Refresh Prices'}
-      </button>
     </div>
   );
 }
