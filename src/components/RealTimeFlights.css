@@ -5,6 +5,9 @@
   margin: 2rem 0;
   color: #fff;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .realtime-header {
@@ -367,6 +370,8 @@
   border-radius: 12px;
   overflow: hidden;
   border: 2px solid #334155;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .board-header {
@@ -758,12 +763,19 @@
 
 @media (max-width: 600px) {
   .realtime-flights-container {
-    padding: 1rem;
+    padding: 0.75rem;
+    margin: 1rem 0;
+    border-radius: 12px;
   }
   
+  .realtime-header h2 {
+    font-size: 1.25rem;
+  }
+
   .board-header,
   .flight-info-main {
     grid-template-columns: 80px 1fr 80px;
+    padding: 0.75rem;
   }
   
   .col-time,
@@ -784,9 +796,22 @@
   .board-controls {
     flex-direction: column;
   }
+
+  .airport-select-button {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .airport-dropdown {
+    min-width: 0;
+  }
   
   .single-flight-route {
     flex-direction: column;
+  }
+
+  .big-flight-number {
+    font-size: 1.75rem;
   }
   
   .route-arrow {
