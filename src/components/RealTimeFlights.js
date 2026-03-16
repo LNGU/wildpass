@@ -5,6 +5,209 @@ import RealTimeFlightDetail from './RealTimeFlightDetail';
 
 /* global L */
 
+function getStatusClass(status) {
+  const s = typeof status === 'object' ? (status?.text || '') : (status || '');
+  const statusLower = s.toLowerCase();
+  if (statusLower.includes('active') || statusLower.includes('in flight')) return 'status-active';
+  if (statusLower.includes('landed')) return 'status-landed';
+  if (statusLower.includes('cancelled')) return 'status-cancelled';
+  if (statusLower.includes('diverted')) return 'status-diverted';
+  if (statusLower.includes('delayed')) return 'status-delayed';
+  return 'status-scheduled';
+}
+
+function formatStatus(flight) {
+  const sd = flight.status_display;
+  if (!sd) return flight.status || 'Unknown';
+  if (typeof sd === 'string') return sd;
+  if (sd.text) return `${sd.emoji || ''} ${sd.text}`.trim();
+  return flight.status || 'Unknown';
+}
+
+function getTimeDisplay(timeObj) {
+  if (!timeObj) return '--:--';
+  if (typeof timeObj === 'string') return timeObj;
+  if (timeObj.local) return timeObj.local;
+  if (timeObj.utc) return timeObj.utc;
+  return '--:--';
+}
+
+function SingleFlightView({ flight, apiBaseUrl, onBack }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markerRef = useRef(null);
+  const [liveInfo, setLiveInfo] = useState(flight.live);
+  const [lastPoll, setLastPoll] = useState(null);
+
+  // Poll live position every 15 seconds for active flights
+  useEffect(() => {
+    if (flight.status !== 'active') return;
+
+    const pollLive = async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl}/realtime/flight/${flight.flight_number}/live`, {
+          headers: { ...getAuthHeader() },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.live && data.latitude) {
+          setLiveInfo({
+            latitude: data.latitude,
+            longitude: data.longitude,
+            altitude: data.altitude,
+            ground_speed: data.ground_speed,
+            heading: data.heading,
+            vertical_speed: data.vertical_speed,
+          });
+          setLastPoll(new Date());
+        }
+      } catch (e) {
+        // silent
+      }
+    };
+
+    pollLive();
+    const interval = setInterval(pollLive, 15000);
+    return () => clearInterval(interval);
+  }, [flight.flight_number, flight.status, apiBaseUrl]);
+
+  // Init map once
+  useEffect(() => {
+    if (!liveInfo || !liveInfo.latitude || !mapRef.current || mapInstanceRef.current) return;
+    if (typeof L === 'undefined') return;
+
+    const map = L.map(mapRef.current, {
+      center: [liveInfo.latitude, liveInfo.longitude],
+      zoom: 6,
+      zoomControl: true,
+      attributionControl: false,
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+    }).addTo(map);
+
+    const planeIcon = L.divIcon({
+      html: '<div style="font-size:28px;transform:rotate(' + (liveInfo.heading || 0) + 'deg)">✈️</div>',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      className: 'plane-marker',
+    });
+    markerRef.current = L.marker([liveInfo.latitude, liveInfo.longitude], { icon: planeIcon }).addTo(map);
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+      markerRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!liveInfo]);
+
+  // Update marker position on poll
+  useEffect(() => {
+    if (!liveInfo || !liveInfo.latitude || !mapInstanceRef.current || !markerRef.current) return;
+
+    const newLatLng = [liveInfo.latitude, liveInfo.longitude];
+    markerRef.current.setLatLng(newLatLng);
+    markerRef.current.setIcon(L.divIcon({
+      html: '<div style="font-size:28px;transform:rotate(' + (liveInfo.heading || 0) + 'deg)">✈️</div>',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      className: 'plane-marker',
+    }));
+    mapInstanceRef.current.panTo(newLatLng);
+  }, [liveInfo]);
+
+  return (
+    <div className="single-flight-card">
+      <div className="single-flight-header">
+        <div className="flight-id">
+          <span className="big-flight-number">{flight.flight_number}</span>
+          {flight.airline?.name && <span className="airline-name-large">{flight.airline.name}</span>}
+        </div>
+        <span className={`status-badge large ${getStatusClass(flight.status)}`}>
+          {formatStatus(flight)}
+        </span>
+        {flight.delay && flight.delay !== 'On time' && (
+          <span className="delay-badge large">{flight.delay}</span>
+        )}
+      </div>
+
+      {liveInfo && liveInfo.latitude && (
+        <div className="rtfd-live-section" style={{ marginBottom: '1.5rem' }}>
+          <h4 style={{ color: '#22c55e', margin: '0 0 0.75rem 0' }}>Live Position {lastPoll && <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 400, marginLeft: '0.5rem' }}>Updated {lastPoll.toLocaleTimeString()}</span>}</h4>
+          <div ref={mapRef} style={{ width: '100%', height: '220px', borderRadius: '10px', overflow: 'hidden', marginBottom: '0.75rem' }}></div>
+          <div className="rtfd-live-stats">
+            <div><span>Altitude</span><strong>{liveInfo.altitude ? liveInfo.altitude.toLocaleString() : '--'} ft</strong></div>
+            <div><span>Speed</span><strong>{liveInfo.ground_speed || '--'} kts</strong></div>
+            <div><span>Heading</span><strong>{liveInfo.heading || '--'}</strong></div>
+            {liveInfo.vertical_speed != null && (
+              <div><span>V/S</span><strong>{liveInfo.vertical_speed} ft/min</strong></div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="single-flight-route">
+        <div className="route-point origin">
+          <span className="airport-code">{flight.origin}</span>
+          <span className="city">{flight.origin_city}</span>
+          <div className="times">
+            <div className="time-row">
+              <span className="label">Scheduled:</span>
+              <span className="value">{getTimeDisplay(flight.departure?.scheduled)}</span>
+            </div>
+            {(flight.departure?.actual || flight.departure?.estimated) && (
+              <div className="time-row actual">
+                <span className="label">{flight.departure?.actual ? 'Actual:' : 'Est:'}</span>
+                <span className="value">{getTimeDisplay(flight.departure?.actual || flight.departure?.estimated)}</span>
+              </div>
+            )}
+          </div>
+          {(flight.departure?.terminal || flight.departure?.gate) && (
+            <div className="gate-info">
+              {flight.departure?.terminal && <span>Terminal {flight.departure.terminal}</span>}
+              {flight.departure?.gate && <span>Gate {flight.departure.gate}</span>}
+            </div>
+          )}
+        </div>
+        
+        <div className="route-arrow">
+          <span className="plane-icon"></span>
+          <div className="flight-line"></div>
+        </div>
+        
+        <div className="route-point destination">
+          <span className="airport-code">{flight.destination}</span>
+          <span className="city">{flight.destination_city}</span>
+          <div className="times">
+            <div className="time-row">
+              <span className="label">Scheduled:</span>
+              <span className="value">{getTimeDisplay(flight.arrival?.scheduled)}</span>
+            </div>
+            {(flight.arrival?.actual || flight.arrival?.estimated) && (
+              <div className="time-row actual">
+                <span className="label">{flight.arrival?.actual ? 'Actual:' : 'Est:'}</span>
+                <span className="value">{getTimeDisplay(flight.arrival?.actual || flight.arrival?.estimated)}</span>
+              </div>
+            )}
+          </div>
+          {(flight.arrival?.terminal || flight.arrival?.gate) && (
+            <div className="gate-info">
+              {flight.arrival?.terminal && <span>Terminal {flight.arrival.terminal}</span>}
+              {flight.arrival?.gate && <span>Gate {flight.arrival.gate}</span>}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <button className="back-button" onClick={onBack}>
+        Back to Flight Board
+      </button>
+    </div>
+  );
+}
+
 function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
   const [airport, setAirport] = useState(() => {
     return localStorage.getItem('wildpass_favorite_airport') || 'DEN';
@@ -243,27 +446,6 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
     return () => clearInterval(interval);
   }, [fetchFlights]);
 
-  const getStatusClass = (status) => {
-    const s = typeof status === 'object' ? (status?.text || '') : (status || '');
-    const statusLower = s.toLowerCase();
-    if (statusLower.includes('active') || statusLower.includes('in flight')) return 'status-active';
-    if (statusLower.includes('landed')) return 'status-landed';
-    if (statusLower.includes('cancelled')) return 'status-cancelled';
-    if (statusLower.includes('diverted')) return 'status-diverted';
-    if (statusLower.includes('delayed')) return 'status-delayed';
-    return 'status-scheduled';
-  };
-
-  // Safely extract display string from status_display (handles both string and legacy object format)
-  const formatStatus = (flight) => {
-    const sd = flight.status_display;
-    if (!sd) return flight.status || 'Unknown';
-    if (typeof sd === 'string') return sd;
-    // Legacy object format: {emoji, text, color}
-    if (sd.text) return `${sd.emoji || ''} ${sd.text}`.trim();
-    return flight.status || 'Unknown';
-  };
-
   const renderFlightRow = (flight, index) => {
     const isDelay = flight.delay && flight.delay !== 'On time';
     
@@ -316,190 +498,6 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
             {flight.gate && <span className="gate">Gate {flight.gate}</span>}
           </div>
         </div>
-      </div>
-    );
-  };
-
-  const getTimeDisplay = (timeObj) => {
-    if (!timeObj) return '--:--';
-    if (typeof timeObj === 'string') return timeObj;
-    if (timeObj.local) return timeObj.local;
-    if (timeObj.utc) return timeObj.utc;
-    return '--:--';
-  };
-
-  const SingleFlightView = ({ flight }) => {
-    const mapRef = useRef(null);
-    const mapInstanceRef = useRef(null);
-    const markerRef = useRef(null);
-    const [liveInfo, setLiveInfo] = useState(flight.live);
-    const [lastPoll, setLastPoll] = useState(null);
-
-    // Poll live position every 15 seconds for active flights
-    useEffect(() => {
-      if (flight.status !== 'active') return;
-
-      const pollLive = async () => {
-        try {
-          const res = await fetch(`${apiBaseUrl}/realtime/flight/${flight.flight_number}/live`, {
-            headers: { ...getAuthHeader() },
-          });
-          if (!res.ok) return;
-          const data = await res.json();
-          if (data.live && data.latitude) {
-            setLiveInfo({
-              latitude: data.latitude,
-              longitude: data.longitude,
-              altitude: data.altitude,
-              ground_speed: data.ground_speed,
-              heading: data.heading,
-              vertical_speed: data.vertical_speed,
-            });
-            setLastPoll(new Date());
-          }
-        } catch (e) {
-          // silent
-        }
-      };
-
-      pollLive(); // initial fetch
-      const interval = setInterval(pollLive, 15000);
-      return () => clearInterval(interval);
-    }, [flight.flight_number, flight.status, apiBaseUrl]);
-
-    // Init map once
-    useEffect(() => {
-      if (!liveInfo || !liveInfo.latitude || !mapRef.current || mapInstanceRef.current) return;
-      if (typeof L === 'undefined') return;
-
-      const map = L.map(mapRef.current, {
-        center: [liveInfo.latitude, liveInfo.longitude],
-        zoom: 6,
-        zoomControl: true,
-        attributionControl: false,
-      });
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-      }).addTo(map);
-
-      const planeIcon = L.divIcon({
-        html: '<div style="font-size:28px;transform:rotate(' + (liveInfo.heading || 0) + 'deg)">✈️</div>',
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-        className: 'plane-marker',
-      });
-      markerRef.current = L.marker([liveInfo.latitude, liveInfo.longitude], { icon: planeIcon }).addTo(map);
-      mapInstanceRef.current = map;
-
-      return () => {
-        map.remove();
-        mapInstanceRef.current = null;
-        markerRef.current = null;
-      };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [!!liveInfo]);
-
-    // Update marker position on poll
-    useEffect(() => {
-      if (!liveInfo || !liveInfo.latitude || !mapInstanceRef.current || !markerRef.current) return;
-
-      const newLatLng = [liveInfo.latitude, liveInfo.longitude];
-      markerRef.current.setLatLng(newLatLng);
-      markerRef.current.setIcon(L.divIcon({
-        html: '<div style="font-size:28px;transform:rotate(' + (liveInfo.heading || 0) + 'deg)">✈️</div>',
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-        className: 'plane-marker',
-      }));
-      mapInstanceRef.current.panTo(newLatLng);
-    }, [liveInfo]);
-
-    return (
-      <div className="single-flight-card">
-        <div className="single-flight-header">
-          <div className="flight-id">
-            <span className="big-flight-number">{flight.flight_number}</span>
-            {flight.airline?.name && <span className="airline-name-large">{flight.airline.name}</span>}
-            <span className={`status-badge large ${getStatusClass(flight.status)}`}>
-              {formatStatus(flight)}
-            </span>
-          </div>
-          {flight.delay && flight.delay !== 'On time' && (
-            <span className="delay-badge large">{flight.delay}</span>
-          )}
-        </div>
-
-        {liveInfo && liveInfo.latitude && (
-          <div className="rtfd-live-section" style={{ marginBottom: '1.5rem' }}>
-            <h4 style={{ color: '#22c55e', margin: '0 0 0.75rem 0' }}>📡 Live Position {lastPoll && <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 400, marginLeft: '0.5rem' }}>Updated {lastPoll.toLocaleTimeString()}</span>}</h4>
-            <div ref={mapRef} style={{ width: '100%', height: '220px', borderRadius: '10px', overflow: 'hidden', marginBottom: '0.75rem' }}></div>
-            <div className="rtfd-live-stats">
-              <div><span>Altitude</span><strong>{liveInfo.altitude ? liveInfo.altitude.toLocaleString() : '—'} ft</strong></div>
-              <div><span>Speed</span><strong>{liveInfo.ground_speed || '—'} kts</strong></div>
-              <div><span>Heading</span><strong>{liveInfo.heading || '—'}°</strong></div>
-              {liveInfo.vertical_speed != null && (
-                <div><span>V/S</span><strong>{liveInfo.vertical_speed} ft/min</strong></div>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="single-flight-route">
-          <div className="route-point origin">
-            <span className="airport-code">{flight.origin}</span>
-            <span className="city">{flight.origin_city}</span>
-            <div className="times">
-              <div className="time-row">
-                <span className="label">Scheduled:</span>
-                <span className="value">{getTimeDisplay(flight.departure?.scheduled)}</span>
-              </div>
-              {(flight.departure?.actual || flight.departure?.estimated) && (
-                <div className="time-row actual">
-                  <span className="label">{flight.departure?.actual ? 'Actual:' : 'Est:'}</span>
-                  <span className="value">{getTimeDisplay(flight.departure?.actual || flight.departure?.estimated)}</span>
-                </div>
-              )}
-            </div>
-            {(flight.departure?.terminal || flight.departure?.gate) && (
-              <div className="gate-info">
-                {flight.departure?.terminal && <span>Terminal {flight.departure.terminal}</span>}
-                {flight.departure?.gate && <span>Gate {flight.departure.gate}</span>}
-              </div>
-            )}
-          </div>
-          
-          <div className="route-arrow">
-            <span className="plane-icon">✈️</span>
-            <div className="flight-line"></div>
-          </div>
-          
-          <div className="route-point destination">
-            <span className="airport-code">{flight.destination}</span>
-            <span className="city">{flight.destination_city}</span>
-            <div className="times">
-              <div className="time-row">
-                <span className="label">Scheduled:</span>
-                <span className="value">{getTimeDisplay(flight.arrival?.scheduled)}</span>
-              </div>
-              {(flight.arrival?.actual || flight.arrival?.estimated) && (
-                <div className="time-row actual">
-                  <span className="label">{flight.arrival?.actual ? 'Actual:' : 'Est:'}</span>
-                  <span className="value">{getTimeDisplay(flight.arrival?.actual || flight.arrival?.estimated)}</span>
-                </div>
-              )}
-            </div>
-            {(flight.arrival?.terminal || flight.arrival?.gate) && (
-              <div className="gate-info">
-                {flight.arrival?.terminal && <span>Terminal {flight.arrival.terminal}</span>}
-                {flight.arrival?.gate && <span>Gate {flight.arrival.gate}</span>}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <button className="back-button" onClick={() => { setSingleFlight(null); fetchFlights(); }}>
-          ← Back to Flight Board
-        </button>
       </div>
     );
   };
@@ -636,7 +634,7 @@ function RealTimeFlights({ apiBaseUrl, frontierOnly, setFrontierOnly }) {
         </div>
       )}
       
-      {!loading && singleFlight && <SingleFlightView flight={singleFlight} />}
+      {!loading && singleFlight && <SingleFlightView flight={singleFlight} apiBaseUrl={apiBaseUrl} onBack={() => { setSingleFlight(null); fetchFlights(); }} />}
       
       {!loading && !singleFlight && flights.length > 0 && (
         <div className="flight-board">
