@@ -192,6 +192,7 @@
   display: block;
   width: 100%;
   padding: 0.85rem;
+  margin-bottom: 1.5rem;
   border: none;
   border-radius: 10px;
   background: linear-gradient(135deg, #22c55e 0%, #10b981 100%);
