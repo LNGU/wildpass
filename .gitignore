@@ -36,3 +36,4 @@ dist/
 .env*.local
 .flask_cache/
 backend/.venv/
+backend/venv/

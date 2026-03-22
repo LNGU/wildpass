@@ -1,12 +1,7 @@
 {
-  "last_updated": "2026-02-24T00:36:56.879510",
+  "last_updated": "2026-03-21T20:07:46.193715",
   "blackout_periods": {
     "2026": [
-      {
-        "start": "2026-03-13",
-        "end": "2026-03-15",
-        "description": "Spring Break Period"
-      },
       {
         "start": "2026-03-20",
         "end": "2026-03-22",

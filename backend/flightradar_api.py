@@ -8,8 +8,7 @@ No mock data fallback -- errors are returned directly.
 Package: FlightRadarAPI (pip install FlightRadarAPI)
 """
 import re
-from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime
 from FlightRadar24 import FlightRadar24API
 
 
@@ -62,24 +61,22 @@ def _get_status_display(status):
 
 
 def _timestamp_to_time_str(ts, tz_name=None):
-    """Convert unix timestamp to formatted time string in the given timezone."""
+    """Convert unix timestamp to formatted time string. FR24 timestamps are already local."""
     if not ts:
         return None
     try:
-        tz = ZoneInfo(tz_name) if tz_name else None
-        dt = datetime.fromtimestamp(ts, tz=tz or timezone.utc)
+        dt = datetime.utcfromtimestamp(ts)
         return dt.strftime('%I:%M %p')
     except (ValueError, TypeError, OSError, KeyError):
         return None
 
 
 def _timestamp_to_time_dict(ts, tz_name=None):
-    """Convert unix timestamp to the time dict format used by the frontend."""
+    """Convert unix timestamp to the time dict format used by the frontend. FR24 timestamps are already local."""
     if not ts:
         return None
     try:
-        tz = ZoneInfo(tz_name) if tz_name else None
-        dt = datetime.fromtimestamp(ts, tz=tz or timezone.utc)
+        dt = datetime.utcfromtimestamp(ts)
         return {
             'iso': dt.isoformat(),
             'time': dt.strftime('%I:%M %p'),
@@ -353,8 +350,7 @@ class RealTimeFlightService:
             if not ts:
                 return None
             try:
-                tz = ZoneInfo(tz_name) if tz_name else None
-                dt = datetime.fromtimestamp(ts, tz=tz or timezone.utc)
+                dt = datetime.utcfromtimestamp(ts)
                 return dt.strftime('%-I:%M %p')
             except Exception:
                 return None
