@@ -8,7 +8,8 @@ No mock data fallback -- errors are returned directly.
 Package: FlightRadarAPI (pip install FlightRadarAPI)
 """
 import re
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from FlightRadar24 import FlightRadar24API
 
 
@@ -60,23 +61,25 @@ def _get_status_display(status):
     return status_map.get(status, status_map['unknown'])
 
 
-def _timestamp_to_time_str(ts):
-    """Convert unix timestamp to formatted time string."""
+def _timestamp_to_time_str(ts, tz_name=None):
+    """Convert unix timestamp to formatted time string in the given timezone."""
     if not ts:
         return None
     try:
-        dt = datetime.fromtimestamp(ts)
+        tz = ZoneInfo(tz_name) if tz_name else None
+        dt = datetime.fromtimestamp(ts, tz=tz or timezone.utc)
         return dt.strftime('%I:%M %p')
-    except (ValueError, TypeError, OSError):
+    except (ValueError, TypeError, OSError, KeyError):
         return None
 
 
-def _timestamp_to_time_dict(ts):
+def _timestamp_to_time_dict(ts, tz_name=None):
     """Convert unix timestamp to the time dict format used by the frontend."""
     if not ts:
         return None
     try:
-        dt = datetime.fromtimestamp(ts)
+        tz = ZoneInfo(tz_name) if tz_name else None
+        dt = datetime.fromtimestamp(ts, tz=tz or timezone.utc)
         return {
             'iso': dt.isoformat(),
             'time': dt.strftime('%I:%M %p'),
@@ -84,7 +87,7 @@ def _timestamp_to_time_dict(ts):
             'full': dt.strftime('%b %d, %I:%M %p'),
             'local': dt.strftime('%I:%M %p'),
         }
-    except (ValueError, TypeError, OSError):
+    except (ValueError, TypeError, OSError, KeyError):
         return None
 
 
@@ -329,6 +332,14 @@ class RealTimeFlightService:
         origin_name = getattr(flight, 'origin_airport_name', None) or AIRPORT_NAMES.get(origin_code, origin_code)
         dest_name = getattr(flight, 'destination_airport_name', None) or AIRPORT_NAMES.get(dest_code, dest_code)
 
+        # Extract IANA timezone names from flight details
+        airport_details = getattr(flight, 'airport', None) or {}
+        origin_tz = None
+        dest_tz = None
+        if isinstance(airport_details, dict):
+            origin_tz = (airport_details.get('origin', {}) or {}).get('timezone', {}).get('name')
+            dest_tz = (airport_details.get('destination', {}) or {}).get('timezone', {}).get('name')
+
         # Extract time details
         time_details = getattr(flight, 'time_details', {}) or {}
         sched_dep_ts = (time_details.get('scheduled', {}) or {}).get('departure')
@@ -338,11 +349,13 @@ class RealTimeFlightService:
         act_dep_ts = (time_details.get('real', {}) or {}).get('departure')
         act_arr_ts = (time_details.get('real', {}) or {}).get('arrival')
 
-        def _ts_to_local(ts):
+        def _ts_to_local(ts, tz_name=None):
             if not ts:
                 return None
             try:
-                return datetime.fromtimestamp(ts).strftime('%-I:%M %p')
+                tz = ZoneInfo(tz_name) if tz_name else None
+                dt = datetime.fromtimestamp(ts, tz=tz or timezone.utc)
+                return dt.strftime('%-I:%M %p')
             except Exception:
                 return None
 
@@ -370,18 +383,18 @@ class RealTimeFlightService:
                 'airport': origin_name,
                 'airport_code': origin_code,
                 'terminal': origin_terminal, 'gate': origin_gate,
-                'scheduled': _ts_to_local(sched_dep_ts),
-                'estimated': _ts_to_local(est_dep_ts),
-                'actual': _ts_to_local(act_dep_ts),
+                'scheduled': _ts_to_local(sched_dep_ts, origin_tz),
+                'estimated': _ts_to_local(est_dep_ts, origin_tz),
+                'actual': _ts_to_local(act_dep_ts, origin_tz),
                 'delay_minutes': None, 'delay_display': None,
             },
             'arrival': {
                 'airport': dest_name,
                 'airport_code': dest_code,
                 'terminal': dest_terminal, 'gate': dest_gate, 'baggage': dest_baggage,
-                'scheduled': _ts_to_local(sched_arr_ts),
-                'estimated': _ts_to_local(est_arr_ts),
-                'actual': _ts_to_local(act_arr_ts),
+                'scheduled': _ts_to_local(sched_arr_ts, dest_tz),
+                'estimated': _ts_to_local(est_arr_ts, dest_tz),
+                'actual': _ts_to_local(act_arr_ts, dest_tz),
                 'delay_minutes': None, 'delay_display': None,
             },
             'live': {
@@ -396,6 +409,8 @@ class RealTimeFlightService:
             'registration': flight.registration,
             'flight_date': datetime.now().strftime('%Y-%m-%d'),
             'mock_data': False,
+            'origin_timezone': origin_tz,
+            'dest_timezone': dest_tz,
         }
 
     def _format_schedule_flight(self, flight_data, airport_code, flight_type):
@@ -436,6 +451,10 @@ class RealTimeFlightService:
             terminal = dest_info.get('info', {}).get('terminal') if isinstance(dest_info, dict) else None
             gate = dest_info.get('info', {}).get('gate') if isinstance(dest_info, dict) else None
 
+        # Extract IANA timezone names from FR24 airport data
+        origin_tz = (origin_info.get('timezone', {}) or {}).get('name') if isinstance(origin_info, dict) else None
+        dest_tz = (dest_info.get('timezone', {}) or {}).get('name') if isinstance(dest_info, dict) else None
+
         scheduled = time_info.get('scheduled', {})
         real = time_info.get('real', {})
         estimated = time_info.get('estimated', {})
@@ -443,13 +462,15 @@ class RealTimeFlightService:
         if flight_type == 'departures':
             sched_ts = scheduled.get('departure')
             actual_ts = real.get('departure') or estimated.get('departure')
+            display_tz = origin_tz  # board shows departure time in origin tz
         else:
             sched_ts = scheduled.get('arrival')
             actual_ts = real.get('arrival') or estimated.get('arrival')
+            display_tz = dest_tz  # board shows arrival time in dest tz
 
-        scheduled_time_str = _timestamp_to_time_str(sched_ts) or ''
-        scheduled_dict = _timestamp_to_time_dict(sched_ts)
-        actual_dict = _timestamp_to_time_dict(actual_ts)
+        scheduled_time_str = _timestamp_to_time_str(sched_ts, display_tz) or ''
+        scheduled_dict = _timestamp_to_time_dict(sched_ts, display_tz)
+        actual_dict = _timestamp_to_time_dict(actual_ts, display_tz)
 
         delay_str = 'On time'
         if sched_ts and actual_ts and actual_ts > sched_ts:
@@ -526,6 +547,8 @@ class RealTimeFlightService:
             'aircraft_registration': aircraft_reg,
             'aircraft_model': aircraft_model_code,
             'aircraft_model_text': aircraft_model_text_v,
+            'origin_timezone': origin_tz,
+            'dest_timezone': dest_tz,
         }
 
 
