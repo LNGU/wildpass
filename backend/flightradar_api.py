@@ -8,6 +8,7 @@ No mock data fallback -- errors are returned directly.
 Package: FlightRadarAPI (pip install FlightRadarAPI)
 """
 import re
+import requests
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from FlightRadar24 import FlightRadar24API
@@ -175,7 +176,18 @@ class RealTimeFlightService:
                         if f.number and f.number.replace(' ', '') == flight_num:
                             details = self._api.get_flight_details(f)
                             f.set_flight_details(details)
-                            return self._format_live_flight(f, flight_num)
+                            # Also fetch raw details for timezone data
+                            raw_details = None
+                            try:
+                                r = requests.get(
+                                    f'https://data-live.flightradar24.com/clickhandler/?version=2&flight={f.id}',
+                                    headers={'User-Agent': 'Mozilla/5.0'},
+                                    timeout=10,
+                                )
+                                raw_details = r.json()
+                            except Exception as e:
+                                print(f"Warning: could not fetch raw flight details: {e}")
+                            return self._format_live_flight(f, flight_num, raw_details)
                 except Exception as e:
                     print(f"⚠️ FlightRadar24 get_flights error: {e}")
 
@@ -316,7 +328,7 @@ class RealTimeFlightService:
     # Response format converters
     # -----------------------------------------------------------------
 
-    def _format_live_flight(self, flight, flight_number):
+    def _format_live_flight(self, flight, flight_number, raw_details=None):
         """Format a live Flight object to app format."""
         origin_code = flight.origin_airport_iata or 'N/A'
         dest_code = flight.destination_airport_iata or 'N/A'
@@ -332,13 +344,18 @@ class RealTimeFlightService:
         origin_name = getattr(flight, 'origin_airport_name', None) or AIRPORT_NAMES.get(origin_code, origin_code)
         dest_name = getattr(flight, 'destination_airport_name', None) or AIRPORT_NAMES.get(dest_code, dest_code)
 
-        # Extract IANA timezone names from flight details
-        airport_details = getattr(flight, 'airport', None) or {}
+        # Extract IANA timezone names from raw details dict
         origin_tz = None
         dest_tz = None
-        if isinstance(airport_details, dict):
-            origin_tz = (airport_details.get('origin', {}) or {}).get('timezone', {}).get('name')
-            dest_tz = (airport_details.get('destination', {}) or {}).get('timezone', {}).get('name')
+        if raw_details and isinstance(raw_details, dict):
+            try:
+                origin_tz = raw_details['airport']['origin']['timezone']['name']
+            except (KeyError, TypeError):
+                pass
+            try:
+                dest_tz = raw_details['airport']['destination']['timezone']['name']
+            except (KeyError, TypeError):
+                pass
 
         # Extract time details
         time_details = getattr(flight, 'time_details', {}) or {}
