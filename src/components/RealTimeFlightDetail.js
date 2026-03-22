@@ -55,9 +55,12 @@ function RealTimeFlightDetail({ flight, apiBaseUrl, onClose }) {
     };
   }, [liveData]);
 
-  const formatTs = (ts) => {
+  const formatTs = (ts, tz) => {
     if (!ts) return '--:--';
     const d = new Date(ts * 1000);
+    if (tz) {
+      return d.toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: true });
+    }
     const hours = d.getUTCHours();
     const minutes = d.getUTCMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -145,13 +148,13 @@ function RealTimeFlightDetail({ flight, apiBaseUrl, onClose }) {
             <h4>Departure</h4>
             <div className="rtfd-time-row">
               <span className="rtfd-label">Scheduled</span>
-              <span className="rtfd-val">{formatTs(flight.scheduled_departure_ts)}</span>
+              <span className="rtfd-val">{formatTs(flight.scheduled_departure_ts, flight.origin_timezone)}</span>
             </div>
             {(flight.estimated_departure_ts || flight.actual_departure_ts) && (
               <div className={'rtfd-time-row ' + delayClass(depDelay)}>
                 <span className="rtfd-label">{flight.actual_departure_ts ? 'Actual' : 'Estimated'}</span>
                 <span className="rtfd-val">
-                  {formatTs(flight.actual_departure_ts || flight.estimated_departure_ts)}
+                  {formatTs(flight.actual_departure_ts || flight.estimated_departure_ts, flight.origin_timezone)}
                 </span>
                 {depDelay !== null && (
                   <span className={'rtfd-delay ' + delayClass(depDelay)}>{delayText(depDelay)}</span>
@@ -163,13 +166,13 @@ function RealTimeFlightDetail({ flight, apiBaseUrl, onClose }) {
             <h4>Arrival</h4>
             <div className="rtfd-time-row">
               <span className="rtfd-label">Scheduled</span>
-              <span className="rtfd-val">{formatTs(flight.scheduled_arrival_ts)}</span>
+              <span className="rtfd-val">{formatTs(flight.scheduled_arrival_ts, flight.dest_timezone)}</span>
             </div>
             {(flight.estimated_arrival_ts || flight.actual_arrival_ts) && (
               <div className={'rtfd-time-row ' + delayClass(arrDelay)}>
                 <span className="rtfd-label">{flight.actual_arrival_ts ? 'Actual' : 'Estimated'}</span>
                 <span className="rtfd-val">
-                  {formatTs(flight.actual_arrival_ts || flight.estimated_arrival_ts)}
+                  {formatTs(flight.actual_arrival_ts || flight.estimated_arrival_ts, flight.dest_timezone)}
                 </span>
                 {arrDelay !== null && (
                   <span className={'rtfd-delay ' + delayClass(arrDelay)}>{delayText(arrDelay)}</span>

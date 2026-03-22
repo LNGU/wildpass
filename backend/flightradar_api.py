@@ -9,6 +9,7 @@ Package: FlightRadarAPI (pip install FlightRadarAPI)
 """
 import re
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from FlightRadar24 import FlightRadar24API
 
 
@@ -61,22 +62,24 @@ def _get_status_display(status):
 
 
 def _timestamp_to_time_str(ts, tz_name=None):
-    """Convert unix timestamp to formatted time string. FR24 timestamps are already local."""
+    """Convert unix timestamp to formatted time string in airport-local time."""
     if not ts:
         return None
     try:
-        dt = datetime.utcfromtimestamp(ts)
+        tz = ZoneInfo(tz_name) if tz_name else ZoneInfo('UTC')
+        dt = datetime.fromtimestamp(ts, tz=tz)
         return dt.strftime('%I:%M %p')
     except (ValueError, TypeError, OSError, KeyError):
         return None
 
 
 def _timestamp_to_time_dict(ts, tz_name=None):
-    """Convert unix timestamp to the time dict format used by the frontend. FR24 timestamps are already local."""
+    """Convert unix timestamp to the time dict format used by the frontend, in airport-local time."""
     if not ts:
         return None
     try:
-        dt = datetime.utcfromtimestamp(ts)
+        tz = ZoneInfo(tz_name) if tz_name else ZoneInfo('UTC')
+        dt = datetime.fromtimestamp(ts, tz=tz)
         return {
             'iso': dt.isoformat(),
             'time': dt.strftime('%I:%M %p'),
@@ -350,7 +353,8 @@ class RealTimeFlightService:
             if not ts:
                 return None
             try:
-                dt = datetime.utcfromtimestamp(ts)
+                tz = ZoneInfo(tz_name) if tz_name else ZoneInfo('UTC')
+                dt = datetime.fromtimestamp(ts, tz=tz)
                 return dt.strftime('%-I:%M %p')
             except Exception:
                 return None
