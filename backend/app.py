@@ -304,6 +304,7 @@ def search_flights():
         trip_type = data.get('tripType', 'round-trip')
         departure_date = data.get('departureDate')
         return_date = data.get('returnDate')
+        nonstop_only = bool(data.get('nonstopOnly', False))
 
         # Airline filter: 'F9' (default), 'ALL' or '' means no filter
         raw_airline = data.get('airlineFilter', 'F9')
@@ -315,14 +316,19 @@ def search_flights():
                 'error': 'Missing required fields: origins, destinations, departureDate'
             }), 400
 
-        # Check cache first
+        # Check cache first (cache stores UNFILTERED results; nonstop filter applied on read)
         cache_key = get_cache_key(origins, destinations, departure_date, return_date, trip_type, airline_filter)
         cached_result = flask_cache.get(cache_key)
+
+        def _apply_nonstop(flts):
+            if nonstop_only and flts:
+                return [f for f in flts if int(f.get('stops', 0) or 0) == 0]
+            return flts
 
         if cached_result is not None:
             print(f"Returning cached results for {cache_key}")
             return jsonify({
-                'flights': cached_result,
+                'flights': _apply_nonstop(cached_result),
                 'cached': True,
                 'searchParams': data,
                 'devMode': DEV_MODE
@@ -358,8 +364,12 @@ def search_flights():
             flights = generate_mock_flights(origins, destinations, departure_date, return_date)
             data_source = 'mock'
 
-        # Cache the results
+        # Cache the UNFILTERED results, then apply nonstop filter to response
         flask_cache.set(cache_key, flights)
+        if nonstop_only and flights:
+            before = len(flights)
+            flights = [f for f in flights if int(f.get('stops', 0) or 0) == 0]
+            print(f"[NONSTOP] Filter: {before} -> {len(flights)} flights")
 
         response_data = {
             'flights': flights,
@@ -396,6 +406,7 @@ def search_flights_stream():
         trip_type = data.get('tripType', 'round-trip')
         departure_date = data.get('departureDate')
         return_date = data.get('returnDate')
+        nonstop_only = bool(data.get('nonstopOnly', False))
 
         # Airline filter
         raw_airline = data.get('airlineFilter', 'F9')
@@ -434,13 +445,16 @@ def search_flights_stream():
                             route_flights = []
 
                         if route_flights:
-                            all_flights.extend(route_flights)
-                            event_data = {
-                                'route': f"{origin}->{destination}",
-                                'flights': route_flights,
-                                'count': len(route_flights)
-                            }
-                            yield f"data: {json.dumps(event_data)}\n\n"
+                            if nonstop_only:
+                                route_flights = [f for f in route_flights if int(f.get('stops', 0) or 0) == 0]
+                            if route_flights:
+                                all_flights.extend(route_flights)
+                                event_data = {
+                                    'route': f"{origin}->{destination}",
+                                    'flights': route_flights,
+                                    'count': len(route_flights)
+                                }
+                                yield f"data: {json.dumps(event_data)}\n\n"
                         time.sleep(0.1)
             else:
                 # Fallback to mock data

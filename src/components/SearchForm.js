@@ -15,6 +15,7 @@ function SearchForm({ onSearch, loading, frontierOnly, setFrontierOnly }) {
   const [maxTripDuration, setMaxTripDuration] = useState('');
   const [maxTripDurationUnit, setMaxTripDurationUnit] = useState('days');
   const [nonstopPreferred, setNonstopPreferred] = useState(false);
+  const [nonstopOnly, setNonstopOnly] = useState(false);
   const [showBlackoutModal, setShowBlackoutModal] = useState(false);
 
   const handleSwap = () => {
@@ -79,6 +80,9 @@ function SearchForm({ onSearch, loading, frontierOnly, setFrontierOnly }) {
         searchParams.maxTripDuration = maxTripDuration;
         searchParams.maxTripDurationUnit = maxTripDurationUnit;
       }
+    } else {
+      // Hard nonstop filter for regular search modes
+      searchParams.nonstopOnly = nonstopOnly;
     }
 
     onSearch(searchParams);
@@ -391,6 +395,22 @@ function SearchForm({ onSearch, loading, frontierOnly, setFrontierOnly }) {
               <small>We'll try to find non-stop options, but show connecting flights if needed</small>
             </div>
           </>
+        )}
+
+        {tripType !== 'trip-planner' && (
+          <div className="form-group">
+            <div className="checkbox-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={nonstopOnly}
+                  onChange={(e) => setNonstopOnly(e.target.checked)}
+                />
+                <span>Nonstop flights only</span>
+              </label>
+            </div>
+            <small>Only show direct flights with zero stops</small>
+          </div>
         )}
 
         <button type="submit" className="search-button" disabled={loading}>
