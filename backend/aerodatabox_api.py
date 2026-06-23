@@ -471,6 +471,20 @@ class RealTimeFlightService:
             print(f"⚠️ AeroDataBox exception: {e} — using mock data")
             return _mock()
 
+    def get_live_flight(self, flight_number):
+        """
+        Live position tracking (lat/lon/altitude) is not supported on the AeroDataBox free
+        plan we use, so return a clean 'not supported' payload instead of crashing.
+
+        The shape matches what app.py's /api/realtime/flight/<n>/live endpoint expects.
+        """
+        return {
+            'flight_number': flight_number,
+            'live': False,
+            'error': 'Live position tracking not supported by AeroDataBox on the current plan',
+            'mock_data': False,
+        }
+
     # -----------------------------------------------------------------
     # Response format converters
     # -----------------------------------------------------------------
