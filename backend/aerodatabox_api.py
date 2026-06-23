@@ -280,7 +280,7 @@ class RealTimeFlightService:
         """
         def _mock():
             mock_flights = [
-                _generate_mock_single_flight(f"{random.choice(["F9","UA","AA","DL","WN","NK"])}{random.randint(100, 2999)}")
+                _generate_mock_single_flight(f"{random.choice(['F9','UA','AA','DL','WN','NK'])}{random.randint(100, 2999)}")
                 for _ in range(random.randint(1, 3))
             ]
             return {
